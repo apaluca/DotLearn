@@ -1,89 +1,102 @@
-import { useEffect, useState } from "react";
-import { Container, Table, Alert, Spinner, Card } from "react-bootstrap";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { Container } from "react-bootstrap";
 import "./App.css";
 import NavBar from "./components/NavBar";
+import Login from "./components/Login";
+import Register from "./components/Register";
+import Dashboard from "./components/Dashboard";
+import CourseList from "./components/CourseList";
+import CourseDetail from "./components/CourseDetail";
+import CreateCourse from "./components/CreateCourse";
+import EditCourse from "./components/EditCourse";
+import CourseEditor from "./components/CourseEditor";
+import Profile from "./components/Profile";
+import Footer from "./components/Footer";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 function App() {
-  const [forecasts, setForecasts] = useState();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
+  );
+}
 
-  useEffect(() => {
-    populateWeatherData();
-  }, []);
+function AppContent() {
+  const { user, loading } = useAuth();
 
-  async function populateWeatherData() {
-    try {
-      const response = await fetch("weatherforecast");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setForecasts(data);
-    } catch (e) {
-      setError(
-        "Failed to fetch weather data. Please ensure the backend server is running.",
-      );
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  let content;
   if (loading) {
-    content = (
-      <div className="text-center my-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading weather data...</p>
-      </div>
-    );
-  } else if (error) {
-    content = <Alert variant="danger">{error}</Alert>;
-  } else {
-    content = (
-      <Table striped bordered hover responsive>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Temp. (C)</th>
-            <th>Temp. (F)</th>
-            <th>Summary</th>
-          </tr>
-        </thead>
-        <tbody>
-          {forecasts?.map((forecast) => (
-            <tr key={forecast.date}>
-              <td>{forecast.date}</td>
-              <td>{forecast.temperatureC}</td>
-              <td>{forecast.temperatureF}</td>
-              <td>{forecast.summary}</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    );
+    return <div>Loading...</div>;
   }
 
   return (
     <>
       <NavBar />
-      <Container className="py-4">
-        <Card className="shadow-sm">
-          <Card.Body>
-            <Card.Title as="h1" className="mb-4">
-              Weather Forecast
-            </Card.Title>
-            <Card.Text>
-              This component demonstrates fetching data from the ASP.NET Core
-              backend.
-            </Card.Text>
-            {content}
-          </Card.Body>
-        </Card>
+      <Container className="py-4 main-container">
+        <Routes>
+          <Route
+            path="/login"
+            element={!user ? <Login /> : <Navigate to="/dashboard" />}
+          />
+          <Route
+            path="/register"
+            element={!user ? <Register /> : <Navigate to="/dashboard" />}
+          />
+          <Route
+            path="/dashboard"
+            element={user ? <Dashboard /> : <Navigate to="/login" />}
+          />
+          <Route path="/courses" element={<CourseList />} />
+          <Route path="/courses/:id" element={<CourseDetail />} />
+          <Route
+            path="/courses/create"
+            element={
+              user && (user.role === "Instructor" || user.role === "Admin") ? (
+                <CreateCourse />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/courses/edit/:id"
+            element={
+              user && (user.role === "Instructor" || user.role === "Admin") ? (
+                <EditCourse />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          {/* Add this new route for the course content editor */}
+          <Route
+            path="/courses/editor/:id"
+            element={
+              user && (user.role === "Instructor" || user.role === "Admin") ? (
+                <CourseEditor />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/profile"
+            element={user ? <Profile /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/"
+            element={<Navigate to={user ? "/dashboard" : "/login"} />}
+          />
+        </Routes>
       </Container>
+      <Footer />
     </>
   );
 }
