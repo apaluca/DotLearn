@@ -9,6 +9,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import Quiz from "./Quiz";
+import QuizEditor from "./QuizEditor";
 
 function LessonView({
   lesson,
@@ -43,48 +44,50 @@ function LessonView({
       const response = await axios.get(`/api/lessons/${lesson.id}`);
       setContent(response.data);
 
-      // Mark lesson as started
-      await axios.post("/api/progress/lesson/start", {
-        lessonId: lesson.id,
-      });
+      // Mark lesson as started (only for non-instructors)
+      if (!isInstructor) {
+        await axios.post("/api/progress/lesson/start", {
+          lessonId: lesson.id,
+        });
 
-      // Check progress status
-      const progressResponse = await axios.get(
-        `/api/progress/course/${response.data.courseId}`,
-      );
-      const courseProgress = progressResponse.data;
-
-      // Find this lesson's progress - first find the right module
-      let foundLessonProgress = null;
-
-      // Loop through all modules and their lessons to find the current lesson's progress
-      for (const module of courseProgress.modules) {
-        const lessonProgress = module.lessons.find(
-          (l) => l.lessonId === lesson.id,
+        // Check progress status
+        const progressResponse = await axios.get(
+          `/api/progress/course/${response.data.courseId}`,
         );
+        const courseProgress = progressResponse.data;
 
-        if (lessonProgress) {
-          foundLessonProgress = lessonProgress;
-          break;
+        // Find this lesson's progress - first find the right module
+        let foundLessonProgress = null;
+
+        // Loop through all modules and their lessons to find the current lesson's progress
+        for (const module of courseProgress.modules) {
+          const lessonProgress = module.lessons.find(
+            (l) => l.lessonId === lesson.id,
+          );
+
+          if (lessonProgress) {
+            foundLessonProgress = lessonProgress;
+            break;
+          }
         }
-      }
 
-      if (foundLessonProgress) {
-        console.log("Found lesson progress:", foundLessonProgress);
-        setProgress({
-          isStarted: true,
-          isCompleted: foundLessonProgress.isCompleted,
-          startedAt: foundLessonProgress.startedAt,
-          completedAt: foundLessonProgress.completedAt,
-        });
-      } else {
-        console.log("No progress found for lesson ID:", lesson.id);
-        setProgress({
-          isStarted: true,
-          isCompleted: false,
-          startedAt: new Date(),
-          completedAt: null,
-        });
+        if (foundLessonProgress) {
+          console.log("Found lesson progress:", foundLessonProgress);
+          setProgress({
+            isStarted: true,
+            isCompleted: foundLessonProgress.isCompleted,
+            startedAt: foundLessonProgress.startedAt,
+            completedAt: foundLessonProgress.completedAt,
+          });
+        } else {
+          console.log("No progress found for lesson ID:", lesson.id);
+          setProgress({
+            isStarted: true,
+            isCompleted: false,
+            startedAt: new Date(),
+            completedAt: null,
+          });
+        }
       }
     } catch (err) {
       console.error("Error fetching lesson content:", err);
@@ -179,7 +182,14 @@ function LessonView({
       <Card.Body>
         {/* Display content based on lesson type */}
         {lesson.type === "Quiz" ? (
-          <Quiz lessonId={lesson.id} onQuizComplete={handleQuizComplete} />
+          // Show different components for Quiz based on instructor status
+          isInstructor ? (
+            // Show QuizEditor for instructors
+            <QuizEditor lessonId={lesson.id} />
+          ) : (
+            // Show Quiz component for students
+            <Quiz lessonId={lesson.id} onQuizComplete={handleQuizComplete} />
+          )
         ) : lesson.type === "Video" ? (
           <div className="mb-4">
             <div className="ratio ratio-16x9">

@@ -9,6 +9,7 @@ import {
   InputGroup,
   Spinner,
 } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import RichTextEditor from "./RichTextEditor";
 import {
   FaSave,
@@ -26,7 +27,9 @@ function LessonModal({
   lessonData,
   onSubmit,
   isEditing = false,
+  courseId,
 }) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: "",
     type: "Text",
@@ -176,10 +179,14 @@ function LessonModal({
       // First save the quiz lesson
       const result = await onSubmit(formData);
 
-      // Then close the modal - the parent component will handle navigation
+      // Close the modal
       onHide();
 
-      // Return the result to the parent component
+      // Navigate to the lesson view which will show the quiz editor
+      if (result && result.id) {
+        navigate(`/courses/${courseId}/lesson/${result.id}`);
+      }
+
       return result;
     } catch (err) {
       console.error("Error setting up quiz:", err);

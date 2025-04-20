@@ -489,6 +489,7 @@ function CourseEditor() {
         lessonData={lessonFormData}
         onSubmit={handleLessonSubmit}
         isEditing={lessonFormData.editing}
+        courseId={id}
       />
     </div>
   );
