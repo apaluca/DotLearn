@@ -417,19 +417,6 @@ function CourseDetail() {
                     <div className="d-flex gap-2 justify-content-center">
                       <Button
                         as={Link}
-                        to="#course-content"
-                        variant="primary"
-                        className="d-flex align-items-center gap-2"
-                        onClick={() => {
-                          document
-                            .getElementById("course-content")
-                            .scrollIntoView({ behavior: "smooth" });
-                        }}
-                      >
-                        <FaBook /> Course Content
-                      </Button>
-                      <Button
-                        as={Link}
                         to={`/courses/${id}/progress`}
                         variant="outline-primary"
                         className="d-flex align-items-center gap-2"

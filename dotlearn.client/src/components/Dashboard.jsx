@@ -45,6 +45,9 @@ function Dashboard() {
         if (user) {
           // For students and instructors, get enrolled courses
           const enrolledResponse = await axios.get("/api/enrollments/courses");
+
+          // Make sure we're setting the right data
+          console.log("Enrolled courses data:", enrolledResponse.data);
           setEnrolledCourses(enrolledResponse.data);
 
           // Calculate statistics
@@ -66,11 +69,11 @@ function Dashboard() {
           if (user.role === "Instructor" || user.role === "Admin") {
             const coursesResponse = await axios.get("/api/courses");
             // Filter courses where user is the instructor
-            setMyCourses(
-              coursesResponse.data.filter(
-                (course) => course.instructorId === parseInt(user.id),
-              ),
+            const instructorCourses = coursesResponse.data.filter(
+              (course) => course.instructorId === parseInt(user.id),
             );
+            console.log("Instructor courses:", instructorCourses);
+            setMyCourses(instructorCourses);
           }
         }
       } catch (err) {
@@ -239,7 +242,7 @@ function Dashboard() {
         )}
       </Row>
 
-      {/* Student Section */}
+      {/* Student Section - My Enrolled Courses */}
       <Card className="mb-4 shadow-sm">
         <Card.Header className="bg-light">
           <h2 className="h5 mb-0 d-flex align-items-center gap-2">
@@ -336,7 +339,7 @@ function Dashboard() {
         </Card.Body>
       </Card>
 
-      {/* Instructor Section */}
+      {/* Instructor Section - My Courses */}
       {(user.role === "Instructor" || user.role === "Admin") && (
         <Card className="shadow-sm">
           <Card.Header className="bg-light">
