@@ -271,5 +271,60 @@ namespace DotLearn.Server.Controllers
 
             return progressOverview;
         }
+
+        // POST: api/progress/lesson/uncomplete
+        [HttpPost("lesson/uncomplete")]
+        public async Task<IActionResult> UnmarkLesson(MarkLessonCompleteDto dto)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var lesson = await _context.Lessons
+                .Include(l => l.Module)
+                    .ThenInclude(m => m.Course)
+                .FirstOrDefaultAsync(l => l.Id == dto.LessonId);
+
+            if (lesson == null)
+            {
+                return NotFound("Lesson not found");
+            }
+
+            // Check if user has access to this lesson
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isInstructor = lesson.Module.Course.InstructorId == userId;
+            bool isAdmin = userRole == "Admin";
+            bool isEnrolled = await _context.Enrollments
+                .AnyAsync(e => e.UserId == userId && e.CourseId == lesson.Module.CourseId);
+
+            if (!isInstructor && !isAdmin && !isEnrolled)
+            {
+                return Forbid();
+            }
+
+            // Check if progress record exists
+            var progress = await _context.LessonProgress
+                .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.LessonId == dto.LessonId);
+
+            if (progress == null || !progress.IsCompleted)
+            {
+                return BadRequest("Lesson is not marked as completed.");
+            }
+
+            // Update progress to uncomplete
+            progress.CompletedAt = null;
+            progress.IsCompleted = false;
+
+            // Check if the course enrollment is marked as completed
+            var enrollment = await _context.Enrollments
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.CourseId == lesson.Module.CourseId);
+
+            if (enrollment != null && enrollment.Status == EnrollmentStatus.Completed)
+            {
+                // Update the enrollment status to Active
+                enrollment.Status = EnrollmentStatus.Active;
+                enrollment.CompletionDate = null;
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
     }
 }

@@ -182,15 +182,15 @@ function CourseDetail() {
     }
   };
 
-  const handleLessonComplete = async (lessonId) => {
-    // Update local state to reflect completion
+  const handleLessonComplete = async (lessonId, isCompleted = true) => {
+    // Update local state to reflect completion or uncompletion
     setModules((prevModules) =>
       prevModules.map((m) => {
         if (m.id === activeModule.id) {
           return {
             ...m,
             lessons: m.lessons.map((l) =>
-              l.id === lessonId ? { ...l, isCompleted: true } : l,
+              l.id === lessonId ? { ...l, isCompleted } : l,
             ),
           };
         }

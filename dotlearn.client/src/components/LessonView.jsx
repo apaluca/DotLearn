@@ -1,9 +1,13 @@
-// src/components/LessonView.jsx
 import { useState, useEffect } from "react";
 import { Card, Button, Spinner, Alert, Badge } from "react-bootstrap";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { FaCheckCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaArrowLeft,
+  FaArrowRight,
+  FaTimes,
+} from "react-icons/fa";
 import Quiz from "./Quiz";
 
 function LessonView({
@@ -35,14 +39,14 @@ function LessonView({
       setLoading(true);
       setError("");
 
+      // Fetch lesson content
+      const response = await axios.get(`/api/lessons/${lesson.id}`);
+      setContent(response.data);
+
       // Mark lesson as started
       await axios.post("/api/progress/lesson/start", {
         lessonId: lesson.id,
       });
-
-      // Fetch lesson content
-      const response = await axios.get(`/api/lessons/${lesson.id}`);
-      setContent(response.data);
 
       // Check progress status
       const progressResponse = await axios.get(
@@ -50,22 +54,37 @@ function LessonView({
       );
       const courseProgress = progressResponse.data;
 
-      // Find this lesson's progress
-      const moduleProgress = courseProgress.modules.find(
-        (m) => m.moduleId === lesson.moduleId,
-      );
-      if (moduleProgress) {
-        const lessonProgress = moduleProgress.lessons.find(
+      // Find this lesson's progress - first find the right module
+      let foundLessonProgress = null;
+
+      // Loop through all modules and their lessons to find the current lesson's progress
+      for (const module of courseProgress.modules) {
+        const lessonProgress = module.lessons.find(
           (l) => l.lessonId === lesson.id,
         );
+
         if (lessonProgress) {
-          setProgress({
-            isStarted: true,
-            isCompleted: lessonProgress.isCompleted,
-            startedAt: lessonProgress.startedAt,
-            completedAt: lessonProgress.completedAt,
-          });
+          foundLessonProgress = lessonProgress;
+          break;
         }
+      }
+
+      if (foundLessonProgress) {
+        console.log("Found lesson progress:", foundLessonProgress);
+        setProgress({
+          isStarted: true,
+          isCompleted: foundLessonProgress.isCompleted,
+          startedAt: foundLessonProgress.startedAt,
+          completedAt: foundLessonProgress.completedAt,
+        });
+      } else {
+        console.log("No progress found for lesson ID:", lesson.id);
+        setProgress({
+          isStarted: true,
+          isCompleted: false,
+          startedAt: new Date(),
+          completedAt: null,
+        });
       }
     } catch (err) {
       console.error("Error fetching lesson content:", err);
@@ -94,11 +113,37 @@ function LessonView({
 
       // Notify parent component
       if (onLessonComplete) {
-        onLessonComplete(lesson.id);
+        onLessonComplete(lesson.id, true);
       }
     } catch (err) {
       console.error("Error marking lesson as complete:", err);
       setError("Failed to mark lesson as complete. Please try again.");
+    } finally {
+      setMarkingComplete(false);
+    }
+  };
+
+  const handleUnmarkComplete = async () => {
+    try {
+      setMarkingComplete(true);
+
+      await axios.post("/api/progress/lesson/uncomplete", {
+        lessonId: lesson.id,
+      });
+
+      setProgress({
+        ...progress,
+        isCompleted: false,
+        completedAt: null,
+      });
+
+      // Notify parent component
+      if (onLessonComplete) {
+        onLessonComplete(lesson.id, false);
+      }
+    } catch (err) {
+      console.error("Error unmarking lesson as complete:", err);
+      setError("Failed to unmark lesson as complete. Please try again.");
     } finally {
       setMarkingComplete(false);
     }
@@ -172,33 +217,59 @@ function LessonView({
           </div>
 
           <div className="d-flex gap-2">
-            {!progress.isCompleted &&
-              lesson.type !== "Quiz" &&
-              !isInstructor && (
-                <Button
-                  variant="success"
-                  onClick={handleMarkComplete}
-                  disabled={markingComplete}
-                  className="d-flex align-items-center gap-2"
-                >
-                  {markingComplete ? (
-                    <>
-                      <Spinner
-                        as="span"
-                        animation="border"
-                        size="sm"
-                        role="status"
-                        aria-hidden="true"
-                      />{" "}
-                      Marking...
-                    </>
-                  ) : (
-                    <>
-                      <FaCheckCircle /> Mark as Complete
-                    </>
-                  )}
-                </Button>
-              )}
+            {!isInstructor && lesson.type !== "Quiz" && (
+              <>
+                {progress.isCompleted ? (
+                  <Button
+                    variant="outline-warning"
+                    onClick={handleUnmarkComplete}
+                    disabled={markingComplete}
+                    className="d-flex align-items-center gap-2"
+                  >
+                    {markingComplete ? (
+                      <>
+                        <Spinner
+                          as="span"
+                          animation="border"
+                          size="sm"
+                          role="status"
+                          aria-hidden="true"
+                        />{" "}
+                        Unmarking...
+                      </>
+                    ) : (
+                      <>
+                        <FaTimes /> Unmark as Complete
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="success"
+                    onClick={handleMarkComplete}
+                    disabled={markingComplete}
+                    className="d-flex align-items-center gap-2"
+                  >
+                    {markingComplete ? (
+                      <>
+                        <Spinner
+                          as="span"
+                          animation="border"
+                          size="sm"
+                          role="status"
+                          aria-hidden="true"
+                        />{" "}
+                        Marking...
+                      </>
+                    ) : (
+                      <>
+                        <FaCheckCircle /> Mark as Complete
+                      </>
+                    )}
+                  </Button>
+                )}
+              </>
+            )}
 
             {nextLesson && (
               <Button
