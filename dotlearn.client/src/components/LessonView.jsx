@@ -5,7 +5,6 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import {
   FaCheckCircle,
-  FaPlay,
   FaArrowLeft,
   FaArrowRight,
 } from "react-icons/fa";
@@ -13,7 +12,6 @@ import Quiz from "./Quiz";
 
 function LessonView({
   lesson,
-  moduleTitle,
   onLessonComplete,
   nextLesson,
   prevLesson,
@@ -136,37 +134,7 @@ function LessonView({
 
   return (
     <Card className="shadow-sm">
-      <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-        <h3 className="h5 mb-0">{lesson.title}</h3>
-        <div>
-          {progress.isCompleted ? (
-            <Badge
-              bg="success"
-              className="py-2 px-3 d-flex align-items-center gap-2"
-            >
-              <FaCheckCircle /> Completed
-            </Badge>
-          ) : progress.isStarted ? (
-            <Badge
-              bg="warning"
-              className="py-2 px-3 d-flex align-items-center gap-2"
-            >
-              <FaPlay /> In Progress
-            </Badge>
-          ) : (
-            <Badge bg="secondary" className="py-2 px-3">
-              Not Started
-            </Badge>
-          )}
-        </div>
-      </Card.Header>
-
       <Card.Body>
-        <p className="text-muted mb-4">
-          Module: {moduleTitle} • Lesson Type:{" "}
-          <Badge bg={getLessonTypeBadgeColor(lesson.type)}>{lesson.type}</Badge>
-        </p>
-
         {/* Display content based on lesson type */}
         {lesson.type === "Quiz" ? (
           <Quiz lessonId={lesson.id} onQuizComplete={handleQuizComplete} />
@@ -248,19 +216,6 @@ function LessonView({
       </Card.Body>
     </Card>
   );
-}
-
-function getLessonTypeBadgeColor(type) {
-  switch (type) {
-    case "Text":
-      return "primary";
-    case "Video":
-      return "success";
-    case "Quiz":
-      return "warning";
-    default:
-      return "secondary";
-  }
 }
 
 export default LessonView;

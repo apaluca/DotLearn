@@ -83,7 +83,8 @@ namespace DotLearn.Server.Controllers
                     InstructorName = $"{e.Course.Instructor.FirstName} {e.Course.Instructor.LastName}",
                     Status = e.Status.ToString(),
                     EnrollmentDate = e.EnrollmentDate,
-                    CompletionDate = e.CompletionDate
+                    CompletionDate = e.CompletionDate,
+                    EnrollmentId = e.Id
                 })
                 .ToListAsync();
 

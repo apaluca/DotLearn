@@ -10,5 +10,6 @@
         public string Status { get; set; }
         public DateTime EnrollmentDate { get; set; }
         public DateTime? CompletionDate { get; set; }
+        public int EnrollmentId { get; set; }
     }
 }
