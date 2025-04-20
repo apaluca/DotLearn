@@ -61,6 +61,7 @@ namespace DotLearn.Server.Controllers
 
         // GET: api/lessons/5
         [HttpGet("{id}")]
+        [Authorize] // Allow any authenticated user to attempt access
         public async Task<ActionResult<LessonDetailDto>> GetLesson(int id)
         {
             var lesson = await _context.Lessons
@@ -73,11 +74,21 @@ namespace DotLearn.Server.Controllers
                 return NotFound();
             }
 
-            // Check if user has access to this lesson's course
+            // Get user info
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var userRole = User.FindFirstValue(ClaimTypes.Role);
 
-            if (lesson.Module.Course.InstructorId != userId && userRole != "Admin")
+            // Check if user has access to this lesson's course
+            // Users can access lesson content if:
+            // 1. They are the instructor of the course, OR
+            // 2. They are an admin, OR
+            // 3. They are enrolled in the course
+            bool isInstructor = lesson.Module.Course.InstructorId == userId;
+            bool isAdmin = userRole == "Admin";
+            bool isEnrolled = await _context.Enrollments
+                .AnyAsync(e => e.UserId == userId && e.CourseId == lesson.Module.CourseId);
+
+            if (!isInstructor && !isAdmin && !isEnrolled)
             {
                 return Forbid();
             }
