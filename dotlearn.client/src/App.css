@@ -1,11 +1,23 @@
 ﻿#root {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 2rem;
-    text-align: center;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
 }
 
-th, td {
-    padding-left: 1rem;
-    padding-right: 1rem;
+th,
+td {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Additional Bootstrap compatible styles */
+.card {
+  margin-bottom: 1.5rem;
+}
+
+/* Make small screens look better */
+@media (max-width: 576px) {
+  #root {
+    padding: 1rem;
+  }
 }
