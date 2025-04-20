@@ -1,6 +1,4 @@
-﻿using DotLearn.Server.Models.DotLearn.Server.Models;
-
-namespace DotLearn.Server.Models
+﻿namespace DotLearn.Server.Models
 {
     public class QuizOption
     {

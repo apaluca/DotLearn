@@ -3,6 +3,6 @@
     public class SubmitQuizAnswerDto
     {
         public int QuestionId { get; set; }
-        public int? SelectedOptionId { get; set; }
+        public List<int> SelectedOptionIds { get; set; } = new List<int>();
     }
 }

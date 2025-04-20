@@ -9,7 +9,13 @@ import {
   Badge,
 } from "react-bootstrap";
 import axios from "axios";
-import { FaCheck, FaTimes, FaRedo } from "react-icons/fa";
+import {
+  FaCheck,
+  FaTimes,
+  FaRedo,
+  FaCheckSquare,
+  FaDotCircle,
+} from "react-icons/fa";
 
 function Quiz({ lessonId, onQuizComplete }) {
   const [quiz, setQuiz] = useState(null);
@@ -40,11 +46,33 @@ function Quiz({ lessonId, onQuizComplete }) {
     fetchQuiz();
   }, [lessonId]);
 
-  const handleOptionSelect = (questionId, optionId) => {
-    setSelectedOptions({
-      ...selectedOptions,
-      [questionId]: optionId,
-    });
+  const handleOptionSelect = (questionId, optionId, isMultiple = false) => {
+    if (isMultiple) {
+      // For multiple choice questions, toggle the selected state of the option
+      setSelectedOptions((prev) => {
+        const currentSelections = prev[questionId] || [];
+
+        if (currentSelections.includes(optionId)) {
+          // Remove the option if already selected
+          return {
+            ...prev,
+            [questionId]: currentSelections.filter((id) => id !== optionId),
+          };
+        } else {
+          // Add the option if not already selected
+          return {
+            ...prev,
+            [questionId]: [...currentSelections, optionId],
+          };
+        }
+      });
+    } else {
+      // For single choice questions, just set the selected option
+      setSelectedOptions({
+        ...selectedOptions,
+        [questionId]: [optionId], // Store as array for consistency
+      });
+    }
   };
 
   const handleNext = () => {
@@ -79,9 +107,10 @@ function Quiz({ lessonId, onQuizComplete }) {
       setSubmitting(true);
       setError("");
 
+      // Format the answers for submission
       const answers = Object.keys(selectedOptions).map((questionId) => ({
         questionId: parseInt(questionId),
-        selectedOptionId: selectedOptions[questionId],
+        selectedOptionIds: selectedOptions[questionId], // Already an array
       }));
 
       const response = await axios.post("/api/quizzes/submit", {
@@ -111,6 +140,11 @@ function Quiz({ lessonId, onQuizComplete }) {
     setSelectedOptions({});
     setCurrentQuestion(0);
     setQuizResult(null);
+  };
+
+  const isOptionSelected = (questionId, optionId) => {
+    const selections = selectedOptions[questionId] || [];
+    return selections.includes(optionId);
   };
 
   if (loading) {
@@ -177,16 +211,39 @@ function Quiz({ lessonId, onQuizComplete }) {
                 }`}
               >
                 <span>Question {index + 1}</span>
-                <Badge bg={answer.isCorrect ? "success" : "danger"}>
-                  {answer.isCorrect ? "Correct" : "Incorrect"}
-                </Badge>
+                <div>
+                  <Badge
+                    bg={
+                      answer.questionType === "SingleChoice"
+                        ? "primary"
+                        : "info"
+                    }
+                    className="me-2"
+                  >
+                    {answer.questionType === "SingleChoice"
+                      ? "Single Choice"
+                      : "Multiple Choice"}
+                  </Badge>
+                  <Badge bg={answer.isCorrect ? "success" : "danger"}>
+                    {answer.isCorrect ? "Correct" : "Incorrect"}
+                  </Badge>
+                </div>
               </Card.Header>
               <Card.Body>
                 <p className="mb-3">{answer.questionText}</p>
                 <div className="ms-3">
                   <p className="mb-1">
-                    <strong>Your answer: </strong>
-                    {answer.selectedOptionText || "No answer provided"}
+                    <strong>
+                      Your{" "}
+                      {answer.questionType === "SingleChoice"
+                        ? "answer"
+                        : "answers"}
+                      :{" "}
+                    </strong>
+                    {answer.selectedOptionTexts &&
+                    answer.selectedOptionTexts.length > 0
+                      ? answer.selectedOptionTexts.join(", ")
+                      : "No answer provided"}
                     {answer.isCorrect ? (
                       <FaCheck className="text-success ms-2" />
                     ) : (
@@ -195,8 +252,14 @@ function Quiz({ lessonId, onQuizComplete }) {
                   </p>
                   {!answer.isCorrect && (
                     <p className="text-success mb-0">
-                      <strong>Correct answer: </strong>
-                      {answer.correctOptionText}
+                      <strong>
+                        Correct{" "}
+                        {answer.questionType === "SingleChoice"
+                          ? "answer"
+                          : "answers"}
+                        :{" "}
+                      </strong>
+                      {answer.correctOptionTexts.join(", ")}
                     </p>
                   )}
                 </div>
@@ -221,14 +284,28 @@ function Quiz({ lessonId, onQuizComplete }) {
   }
 
   const question = quiz.questions[currentQuestion];
+  const isMultipleChoice = question.questionType === "MultipleChoice";
 
   return (
     <Card className="shadow-sm">
       <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-        <h3 className="h5 mb-0">
-          {quiz.lessonTitle} - Question {currentQuestion + 1}/
-          {quiz.questions.length}
-        </h3>
+        <div>
+          <h3 className="h5 mb-0">
+            {quiz.lessonTitle} - Question {currentQuestion + 1}/
+            {quiz.questions.length}
+          </h3>
+          <Badge bg={isMultipleChoice ? "info" : "primary"} className="mt-2">
+            {isMultipleChoice ? (
+              <>
+                <FaCheckSquare className="me-1" /> Select all that apply
+              </>
+            ) : (
+              <>
+                <FaDotCircle className="me-1" /> Select one answer
+              </>
+            )}
+          </Badge>
+        </div>
         <ProgressBar
           now={((currentQuestion + 1) / quiz.questions.length) * 100}
           variant="primary"
@@ -239,17 +316,34 @@ function Quiz({ lessonId, onQuizComplete }) {
         <h4 className="mb-4">{question.questionText}</h4>
 
         <Form>
-          {question.options.map((option) => (
-            <Form.Check
-              key={option.id}
-              type="radio"
-              id={`option-${option.id}`}
-              className="mb-3"
-              label={option.optionText}
-              checked={selectedOptions[question.id] === option.id}
-              onChange={() => handleOptionSelect(question.id, option.id)}
-            />
-          ))}
+          {question.options.map((option) =>
+            isMultipleChoice ? (
+              <Form.Check
+                key={option.id}
+                type="checkbox"
+                id={`option-${option.id}`}
+                className="mb-3"
+                label={option.optionText}
+                checked={isOptionSelected(question.id, option.id)}
+                onChange={() =>
+                  handleOptionSelect(question.id, option.id, true)
+                }
+              />
+            ) : (
+              <Form.Check
+                key={option.id}
+                type="radio"
+                id={`option-${option.id}`}
+                className="mb-3"
+                name={`question-${question.id}`}
+                label={option.optionText}
+                checked={isOptionSelected(question.id, option.id)}
+                onChange={() =>
+                  handleOptionSelect(question.id, option.id, false)
+                }
+              />
+            ),
+          )}
         </Form>
 
         <div className="d-flex justify-content-between mt-4">

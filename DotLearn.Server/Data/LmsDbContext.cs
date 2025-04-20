@@ -1,5 +1,4 @@
 ﻿using DotLearn.Server.Models;
-using DotLearn.Server.Models.DotLearn.Server.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotLearn.Server.Data

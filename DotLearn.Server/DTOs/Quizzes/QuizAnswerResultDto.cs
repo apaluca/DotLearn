@@ -4,10 +4,13 @@
     {
         public int QuestionId { get; set; }
         public string QuestionText { get; set; }
-        public int? SelectedOptionId { get; set; }
-        public string SelectedOptionText { get; set; }
+        public string QuestionType { get; set; } = "SingleChoice"; // Default
         public bool IsCorrect { get; set; }
-        public int CorrectOptionId { get; set; }
-        public string CorrectOptionText { get; set; }
+
+        // For display purposes
+        public List<int> SelectedOptionIds { get; set; } = new List<int>();
+        public List<string> SelectedOptionTexts { get; set; } = new List<string>();
+        public List<int> CorrectOptionIds { get; set; } = new List<int>();
+        public List<string> CorrectOptionTexts { get; set; } = new List<string>();
     }
 }

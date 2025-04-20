@@ -10,6 +10,7 @@ import {
   ListGroup,
   InputGroup,
   Modal,
+  Badge,
 } from "react-bootstrap";
 import axios from "axios";
 import {
@@ -19,6 +20,8 @@ import {
   FaCheck,
   FaSave,
   FaTimes,
+  FaCheckSquare,
+  FaDotCircle,
 } from "react-icons/fa";
 
 function QuizEditor({ lessonId }) {
@@ -35,6 +38,7 @@ function QuizEditor({ lessonId }) {
       { optionText: "", isCorrect: false },
       { optionText: "", isCorrect: false },
     ],
+    questionType: "SingleChoice", // Default to single choice
   });
   const [editingQuestionId, setEditingQuestionId] = useState(null);
 
@@ -70,6 +74,7 @@ function QuizEditor({ lessonId }) {
         { optionText: "", isCorrect: false },
         { optionText: "", isCorrect: false },
       ],
+      questionType: "SingleChoice",
     });
     setShowQuestionModal(true);
   };
@@ -78,10 +83,11 @@ function QuizEditor({ lessonId }) {
     setEditingQuestionId(question.id);
     setQuestionFormData({
       questionText: question.questionText,
+      questionType: question.questionType || "SingleChoice",
       options: question.options.map((option) => ({
         id: option.id,
         optionText: option.optionText,
-        isCorrect: false, // We don't know which is correct in the UI view
+        isCorrect: option.isCorrect || false,
       })),
     });
     setShowQuestionModal(true);
@@ -91,6 +97,13 @@ function QuizEditor({ lessonId }) {
     setQuestionFormData({
       ...questionFormData,
       questionText: e.target.value,
+    });
+  };
+
+  const handleQuestionTypeChange = (e) => {
+    setQuestionFormData({
+      ...questionFormData,
+      questionType: e.target.value,
     });
   };
 
@@ -129,25 +142,52 @@ function QuizEditor({ lessonId }) {
   const handleSetCorrect = async (questionId, optionId) => {
     try {
       setSaving(true);
-      await axios.put(`/api/quizzes/options/${optionId}/correct`);
 
-      // Update the local state with the new correct option
-      setQuiz((prevQuiz) => {
-        return {
-          ...prevQuiz,
-          questions: prevQuiz.questions.map((q) =>
-            q.id === questionId
-              ? {
-                  ...q,
-                  options: q.options.map((o) => ({
-                    ...o,
-                    isCorrect: o.id === optionId,
-                  })),
-                }
-              : q,
-          ),
-        };
-      });
+      // Find the question to determine its type
+      const question = quiz.questions.find((q) => q.id === questionId);
+
+      if (question.questionType === "SingleChoice") {
+        // For single choice questions, use the existing endpoint
+        await axios.put(`/api/quizzes/options/${optionId}/correct`);
+
+        // Update the local state with the new correct option
+        setQuiz((prevQuiz) => {
+          return {
+            ...prevQuiz,
+            questions: prevQuiz.questions.map((q) =>
+              q.id === questionId
+                ? {
+                    ...q,
+                    options: q.options.map((o) => ({
+                      ...o,
+                      isCorrect: o.id === optionId,
+                    })),
+                  }
+                : q,
+            ),
+          };
+        });
+      } else {
+        // For multiple choice questions, toggle the correct state
+        await axios.put(`/api/quizzes/options/${optionId}/toggle-correct`);
+
+        // Update local state to toggle this option's correct state
+        setQuiz((prevQuiz) => {
+          return {
+            ...prevQuiz,
+            questions: prevQuiz.questions.map((q) =>
+              q.id === questionId
+                ? {
+                    ...q,
+                    options: q.options.map((o) =>
+                      o.id === optionId ? { ...o, isCorrect: !o.isCorrect } : o,
+                    ),
+                  }
+                : q,
+            ),
+          };
+        });
+      }
     } catch (err) {
       console.error("Error setting correct option:", err);
       setError(
@@ -186,6 +226,7 @@ function QuizEditor({ lessonId }) {
           `/api/quizzes/lesson/${lessonId}/questions`,
           {
             questionText: questionFormData.questionText,
+            questionType: questionFormData.questionType,
             options: questionFormData.options.map((option) => ({
               optionText: option.optionText,
             })),
@@ -246,9 +287,29 @@ function QuizEditor({ lessonId }) {
               {quiz.questions.map((question, qIndex) => (
                 <ListGroup.Item key={question.id} className="p-3">
                   <div className="d-flex justify-content-between align-items-start mb-3">
-                    <h5>
-                      Question {qIndex + 1}: {question.questionText}
-                    </h5>
+                    <div>
+                      <h5>
+                        Question {qIndex + 1}: {question.questionText}
+                      </h5>
+                      <Badge
+                        bg={
+                          question.questionType === "SingleChoice"
+                            ? "primary"
+                            : "info"
+                        }
+                        className="me-2"
+                      >
+                        {question.questionType === "SingleChoice" ? (
+                          <>
+                            <FaDotCircle className="me-1" /> Single Choice
+                          </>
+                        ) : (
+                          <>
+                            <FaCheckSquare className="me-1" /> Multiple Choice
+                          </>
+                        )}
+                      </Badge>
+                    </div>
                     <Button
                       variant="outline-primary"
                       size="sm"
@@ -266,23 +327,44 @@ function QuizEditor({ lessonId }) {
                         className="d-flex justify-content-between align-items-center"
                       >
                         <span>{option.optionText}</span>
-                        <Button
-                          variant="outline-success"
-                          size="sm"
-                          onClick={() =>
-                            handleSetCorrect(question.id, option.id)
-                          }
-                          disabled={option.isCorrect}
-                          className="d-flex align-items-center gap-1"
-                        >
-                          {option.isCorrect ? (
-                            <>
-                              <FaCheck /> Correct Answer
-                            </>
-                          ) : (
-                            "Set as Correct"
-                          )}
-                        </Button>
+                        {question.questionType === "SingleChoice" ? (
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() =>
+                              handleSetCorrect(question.id, option.id)
+                            }
+                            disabled={option.isCorrect}
+                            className="d-flex align-items-center gap-1"
+                          >
+                            {option.isCorrect ? (
+                              <>
+                                <FaCheck /> Correct Answer
+                              </>
+                            ) : (
+                              "Set as Correct"
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant={
+                              option.isCorrect ? "success" : "outline-success"
+                            }
+                            size="sm"
+                            onClick={() =>
+                              handleSetCorrect(question.id, option.id)
+                            }
+                            className="d-flex align-items-center gap-1"
+                          >
+                            {option.isCorrect ? (
+                              <>
+                                <FaCheck /> Correct Answer
+                              </>
+                            ) : (
+                              "Mark as Correct"
+                            )}
+                          </Button>
+                        )}
                       </ListGroup.Item>
                     ))}
                   </ListGroup>
@@ -329,6 +411,26 @@ function QuizEditor({ lessonId }) {
               />
             </Form.Group>
 
+            <Form.Group className="mb-4" controlId="questionType">
+              <Form.Label>Question Type</Form.Label>
+              <Form.Select
+                value={questionFormData.questionType}
+                onChange={handleQuestionTypeChange}
+              >
+                <option value="SingleChoice">
+                  Single Choice (Radio Buttons)
+                </option>
+                <option value="MultipleChoice">
+                  Multiple Choice (Checkboxes)
+                </option>
+              </Form.Select>
+              <Form.Text className="text-muted">
+                {questionFormData.questionType === "SingleChoice"
+                  ? "Students can select only one answer."
+                  : "Students can select multiple answers. All correct options must be selected for the question to be marked correct."}
+              </Form.Text>
+            </Form.Group>
+
             <div className="mb-3 d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Options</h5>
               <Button
@@ -368,7 +470,10 @@ function QuizEditor({ lessonId }) {
 
             <Alert variant="info">
               <small>
-                After saving the question, you'll be able to set which option is
+                After saving the question, you'll be able to set which{" "}
+                {questionFormData.questionType === "SingleChoice"
+                  ? "option is"
+                  : "options are"}{" "}
                 correct.
               </small>
             </Alert>

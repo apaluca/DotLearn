@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotLearn.Server.Migrations
 {
     [DbContext(typeof(LmsDbContext))]
-    [Migration("20250420130946_AddQuizAndProgressTracking")]
-    partial class AddQuizAndProgressTracking
+    [Migration("20250420231037_AddQuestionTypeToQuizQuestions")]
+    partial class AddQuestionTypeToQuizQuestions
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -55,31 +55,6 @@ namespace DotLearn.Server.Migrations
                     b.HasIndex("InstructorId");
 
                     b.ToTable("Courses");
-                });
-
-            modelBuilder.Entity("DotLearn.Server.Models.DotLearn.Server.Models.QuizQuestion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("LessonId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OrderIndex")
-                        .HasColumnType("int");
-
-                    b.Property<string>("QuestionText")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LessonId");
-
-                    b.ToTable("QuizQuestions");
                 });
 
             modelBuilder.Entity("DotLearn.Server.Models.Enrollment", b =>
@@ -297,6 +272,34 @@ namespace DotLearn.Server.Migrations
                     b.ToTable("QuizOptions");
                 });
 
+            modelBuilder.Entity("DotLearn.Server.Models.QuizQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("QuestionText")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("QuestionType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.ToTable("QuizQuestions");
+                });
+
             modelBuilder.Entity("DotLearn.Server.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -345,17 +348,6 @@ namespace DotLearn.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("Instructor");
-                });
-
-            modelBuilder.Entity("DotLearn.Server.Models.DotLearn.Server.Models.QuizQuestion", b =>
-                {
-                    b.HasOne("DotLearn.Server.Models.Lesson", "Lesson")
-                        .WithMany()
-                        .HasForeignKey("LessonId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Lesson");
                 });
 
             modelBuilder.Entity("DotLearn.Server.Models.Enrollment", b =>
@@ -426,7 +418,7 @@ namespace DotLearn.Server.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DotLearn.Server.Models.DotLearn.Server.Models.QuizQuestion", "Question")
+                    b.HasOne("DotLearn.Server.Models.QuizQuestion", "Question")
                         .WithMany()
                         .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.NoAction)
@@ -464,7 +456,7 @@ namespace DotLearn.Server.Migrations
 
             modelBuilder.Entity("DotLearn.Server.Models.QuizOption", b =>
                 {
-                    b.HasOne("DotLearn.Server.Models.DotLearn.Server.Models.QuizQuestion", "Question")
+                    b.HasOne("DotLearn.Server.Models.QuizQuestion", "Question")
                         .WithMany("Options")
                         .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -473,16 +465,22 @@ namespace DotLearn.Server.Migrations
                     b.Navigation("Question");
                 });
 
+            modelBuilder.Entity("DotLearn.Server.Models.QuizQuestion", b =>
+                {
+                    b.HasOne("DotLearn.Server.Models.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+                });
+
             modelBuilder.Entity("DotLearn.Server.Models.Course", b =>
                 {
                     b.Navigation("Enrollments");
 
                     b.Navigation("Modules");
-                });
-
-            modelBuilder.Entity("DotLearn.Server.Models.DotLearn.Server.Models.QuizQuestion", b =>
-                {
-                    b.Navigation("Options");
                 });
 
             modelBuilder.Entity("DotLearn.Server.Models.Module", b =>
@@ -493,6 +491,11 @@ namespace DotLearn.Server.Migrations
             modelBuilder.Entity("DotLearn.Server.Models.QuizAttempt", b =>
                 {
                     b.Navigation("Answers");
+                });
+
+            modelBuilder.Entity("DotLearn.Server.Models.QuizQuestion", b =>
+                {
+                    b.Navigation("Options");
                 });
 
             modelBuilder.Entity("DotLearn.Server.Models.User", b =>
