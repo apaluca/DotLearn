@@ -13,6 +13,7 @@ import {
 } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import LessonModal from "./LessonModal";
 
 function CourseEditor() {
   const { id } = useParams();
@@ -169,34 +170,41 @@ function CourseEditor() {
 
   const openEditLessonModal = async (lessonId) => {
     try {
+      setLoading(true);
+
+      // Fetch the full lesson details including content
       const response = await axios.get(`/api/lessons/${lessonId}`);
       const lesson = response.data;
 
+      // Set the form data with all the lesson details
       setLessonFormData({
         title: lesson.title,
-        content: lesson.content,
+        content: lesson.content, // Make sure content is included
         type: lesson.type,
         moduleId: lesson.moduleId,
         editing: true,
-        lessonId,
+        lessonId: lessonId,
+        courseId: id, // The course ID from the route params
       });
+
+      // Now open the modal
       setShowLessonModal(true);
     } catch (err) {
+      console.error("Error loading lesson data:", err);
       alert("Failed to load lesson data. Please try again.");
-      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLessonSubmit = async (e) => {
-    e.preventDefault();
-
+  const handleLessonSubmit = async (formData) => {
     try {
       if (lessonFormData.editing) {
         // Update existing lesson
         await axios.put(`/api/lessons/${lessonFormData.lessonId}`, {
-          title: lessonFormData.title,
-          content: lessonFormData.content,
-          type: lessonFormData.type,
+          title: formData.title,
+          content: formData.content,
+          type: formData.type,
         });
 
         // Update local state
@@ -209,8 +217,8 @@ function CourseEditor() {
                   l.id === lessonFormData.lessonId
                     ? {
                         ...l,
-                        title: lessonFormData.title,
-                        type: lessonFormData.type,
+                        title: formData.title,
+                        type: formData.type,
                       }
                     : l,
                 ),
@@ -219,13 +227,15 @@ function CourseEditor() {
             return m;
           }),
         );
+
+        return { id: lessonFormData.lessonId };
       } else {
         // Create new lesson
         const response = await axios.post("/api/lessons", {
-          title: lessonFormData.title,
-          content: lessonFormData.content,
+          title: formData.title,
+          content: formData.content,
           moduleId: lessonFormData.moduleId,
-          type: lessonFormData.type,
+          type: formData.type,
         });
 
         // Add to local state
@@ -240,13 +250,12 @@ function CourseEditor() {
             return m;
           }),
         );
-      }
 
-      // Close modal
-      setShowLessonModal(false);
+        return response.data;
+      }
     } catch (err) {
-      alert("Failed to save lesson. Please try again.");
-      console.error(err);
+      console.error("Failed to save lesson:", err);
+      throw err;
     }
   };
 
@@ -474,83 +483,13 @@ function CourseEditor() {
       </Modal>
 
       {/* Lesson Modal */}
-      <Modal
+      <LessonModal
         show={showLessonModal}
         onHide={() => setShowLessonModal(false)}
-        size="lg"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {lessonFormData.editing ? "Edit Lesson" : "Add Lesson"}
-          </Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleLessonSubmit}>
-          <Modal.Body>
-            <Form.Group className="mb-3" controlId="lessonTitle">
-              <Form.Label>Lesson Title</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Enter lesson title"
-                value={lessonFormData.title}
-                onChange={(e) =>
-                  setLessonFormData({
-                    ...lessonFormData,
-                    title: e.target.value,
-                  })
-                }
-                required
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3" controlId="lessonType">
-              <Form.Label>Lesson Type</Form.Label>
-              <Form.Select
-                value={lessonFormData.type}
-                onChange={(e) =>
-                  setLessonFormData({ ...lessonFormData, type: e.target.value })
-                }
-              >
-                <option value="Text">Text</option>
-                <option value="Video">Video</option>
-                <option value="Quiz">Quiz</option>
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group controlId="lessonContent">
-              <Form.Label>Lesson Content</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={10}
-                placeholder="Enter lesson content"
-                value={lessonFormData.content}
-                onChange={(e) =>
-                  setLessonFormData({
-                    ...lessonFormData,
-                    content: e.target.value,
-                  })
-                }
-                required
-              />
-              <Form.Text className="text-muted">
-                For Text lessons, add your content here. For Video lessons,
-                paste the video URL. For Quiz lessons, format your questions and
-                answers.
-              </Form.Text>
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() => setShowLessonModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              {lessonFormData.editing ? "Save Changes" : "Add Lesson"}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+        lessonData={lessonFormData}
+        onSubmit={handleLessonSubmit}
+        isEditing={lessonFormData.editing}
+      />
     </div>
   );
 }
