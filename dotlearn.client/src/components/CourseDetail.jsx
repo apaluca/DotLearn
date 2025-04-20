@@ -332,6 +332,14 @@ function CourseDetail() {
             <div className="d-flex gap-2">
               <Button
                 as={Link}
+                to={`/courses/${id}/students`}
+                variant="outline-primary"
+                className="d-flex align-items-center gap-2"
+              >
+                <FaUsers /> View Students
+              </Button>
+              <Button
+                as={Link}
                 to={`/courses/editor/${course.id}`}
                 variant="outline-primary"
                 className="d-flex align-items-center gap-2"

@@ -18,6 +18,7 @@ import CourseEditor from "./components/CourseEditor";
 import Profile from "./components/Profile";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import CourseProgress from "./components/CourseProgress";
+import CourseStudents from "./components/CourseStudents";
 import Footer from "./components/Footer";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -94,6 +95,16 @@ function AppContent() {
           <Route
             path="/courses/:id/progress"
             element={user ? <CourseProgress /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/courses/:id/students"
+            element={
+              user && (user.role === "Instructor" || user.role === "Admin") ? (
+                <CourseStudents />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
           />
           <Route
             path="/profile"

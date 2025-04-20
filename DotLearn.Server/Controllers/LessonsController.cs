@@ -111,7 +111,7 @@ namespace DotLearn.Server.Controllers
 
         // POST: api/lessons
         [HttpPost]
-        [Authorize(Roles = "Instructor,Admin")] // Restrict this endpoint to Instructors and Admins
+        [Authorize(Roles = "Instructor,Admin")]
         public async Task<ActionResult<LessonDto>> CreateLesson(CreateLessonDto lessonDto)
         {
             // Check if module exists
@@ -161,6 +161,22 @@ namespace DotLearn.Server.Controllers
             };
 
             _context.Lessons.Add(lesson);
+            await _context.SaveChangesAsync();
+
+            // Find the course ID for this module
+            var courseId = module.CourseId;
+
+            // Update any completed enrollments to active
+            var completedEnrollments = await _context.Enrollments
+                .Where(e => e.CourseId == courseId && e.Status == EnrollmentStatus.Completed)
+                .ToListAsync();
+
+            foreach (var enrollment in completedEnrollments)
+            {
+                enrollment.Status = EnrollmentStatus.Active;
+                enrollment.CompletionDate = null;
+            }
+
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetLesson), new { id = lesson.Id }, new LessonDto

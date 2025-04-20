@@ -139,6 +139,19 @@ namespace DotLearn.Server.Controllers
             _context.Modules.Add(module);
             await _context.SaveChangesAsync();
 
+            // Update any completed enrollments to active
+            var completedEnrollments = await _context.Enrollments
+                .Where(e => e.CourseId == moduleDto.CourseId && e.Status == EnrollmentStatus.Completed)
+                .ToListAsync();
+
+            foreach (var enrollment in completedEnrollments)
+            {
+                enrollment.Status = EnrollmentStatus.Active;
+                enrollment.CompletionDate = null;
+            }
+
+            await _context.SaveChangesAsync();
+
             return CreatedAtAction(nameof(GetModule), new { id = module.Id }, new ModuleDto
             {
                 Id = module.Id,

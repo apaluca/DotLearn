@@ -173,6 +173,85 @@ namespace DotLearn.Server.Controllers
             return NoContent();
         }
 
+        [HttpGet("{id}/students")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<ActionResult<CourseStudentsDto>> GetCourseStudents(int id)
+        {
+            var course = await _context.Courses.FindAsync(id);
+            if (course == null)
+            {
+                return NotFound();
+            }
+
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+
+            // Check if user is the instructor of this course or an admin
+            if (course.InstructorId != userId && userRole != "Admin")
+            {
+                return Forbid();
+            }
+
+            // Get all enrollments for this course
+            var enrollments = await _context.Enrollments
+                .Where(e => e.CourseId == id)
+                .Include(e => e.User)
+                .ToListAsync();
+
+            // Get progress data for all students
+            var students = new List<StudentProgressDto>();
+            foreach (var enrollment in enrollments)
+            {
+                // Get course progress for this student
+                var courseProgress = await _context.LessonProgress
+                    .Where(lp => lp.UserId == enrollment.UserId && lp.Lesson.Module.CourseId == id)
+                    .ToListAsync();
+
+                // Calculate progress statistics
+                var totalLessons = await _context.Lessons
+                    .CountAsync(l => l.Module.CourseId == id);
+
+                var completedLessons = courseProgress.Count(lp => lp.IsCompleted);
+                double progressPercentage = totalLessons > 0
+                    ? Math.Round((double)completedLessons / totalLessons * 100, 1)
+                    : 0;
+
+                students.Add(new StudentProgressDto
+                {
+                    UserId = enrollment.UserId,
+                    Username = enrollment.User.Username,
+                    FirstName = enrollment.User.FirstName,
+                    LastName = enrollment.User.LastName,
+                    Email = enrollment.User.Email,
+                    EnrollmentDate = enrollment.EnrollmentDate,
+                    Status = enrollment.Status.ToString(),
+                    CompletionDate = enrollment.CompletionDate,
+                    TotalLessons = totalLessons,
+                    CompletedLessons = completedLessons,
+                    ProgressPercentage = progressPercentage
+                });
+            }
+
+            // Calculate overall statistics
+            double averageProgress = students.Count > 0
+                ? students.Average(s => s.ProgressPercentage)
+                : 0;
+            int completedCount = students.Count(s => s.Status == "Completed");
+            double completionRate = students.Count > 0
+                ? Math.Round((double)completedCount / students.Count * 100, 1)
+                : 0;
+
+            return new CourseStudentsDto
+            {
+                CourseId = id,
+                CourseTitle = course.Title,
+                TotalStudents = students.Count,
+                AverageProgress = averageProgress,
+                CompletionRate = completionRate,
+                Students = students
+            };
+        }
+
         private bool CourseExists(int id)
         {
             return _context.Courses.Any(e => e.Id == id);

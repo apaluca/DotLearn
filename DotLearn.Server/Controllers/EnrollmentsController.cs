@@ -166,10 +166,43 @@ namespace DotLearn.Server.Controllers
             {
                 enrollment.Status = status;
 
-                // If status is completed, set completion date
+                // If status is completed, set completion date and mark all lessons as complete
                 if (status == EnrollmentStatus.Completed)
                 {
                     enrollment.CompletionDate = DateTime.Now;
+
+                    // Get all lessons for this course
+                    var lessons = await _context.Lessons
+                        .Where(l => l.Module.CourseId == enrollment.CourseId)
+                        .ToListAsync();
+
+                    foreach (var lesson in lessons)
+                    {
+                        // Check if progress record exists
+                        var progress = await _context.LessonProgress
+                            .FirstOrDefaultAsync(lp => lp.UserId == enrollment.UserId && lp.LessonId == lesson.Id);
+
+                        if (progress == null)
+                        {
+                            // Create new progress record and mark as completed
+                            progress = new LessonProgress
+                            {
+                                UserId = enrollment.UserId,
+                                LessonId = lesson.Id,
+                                StartedAt = DateTime.Now,
+                                CompletedAt = DateTime.Now,
+                                IsCompleted = true
+                            };
+
+                            _context.LessonProgress.Add(progress);
+                        }
+                        else if (!progress.IsCompleted)
+                        {
+                            // Update existing progress to completed
+                            progress.CompletedAt = DateTime.Now;
+                            progress.IsCompleted = true;
+                        }
+                    }
                 }
                 else
                 {

@@ -3,19 +3,10 @@ import { useState, useEffect } from "react";
 import { Card, Button, Spinner, Alert, Badge } from "react-bootstrap";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import {
-  FaCheckCircle,
-  FaArrowLeft,
-  FaArrowRight,
-} from "react-icons/fa";
+import { FaCheckCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import Quiz from "./Quiz";
 
-function LessonView({
-  lesson,
-  onLessonComplete,
-  nextLesson,
-  prevLesson,
-}) {
+function LessonView({ lesson, onLessonComplete, nextLesson, prevLesson }) {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
