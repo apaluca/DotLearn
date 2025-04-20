@@ -6,19 +6,20 @@
 
 /* Main container for page content */
 .main-container {
-  min-height: calc(100vh - 220px);
+  min-height: calc(100vh - 250px);
   /* Adjust for header and footer */
 }
 
-/* Course cards */
+/* Card styling */
 .card {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   transition:
     transform 0.2s,
     box-shadow 0.2s;
 }
 
 .card:hover {
-  transform: translateY(-5px);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
@@ -29,6 +30,10 @@
 }
 
 /* Card header styling */
+.card-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
 .card-header h2,
 .card-header h3 {
   margin-bottom: 0;
@@ -39,6 +44,17 @@
 .accordion-button:not(.collapsed) {
   background-color: rgba(13, 110, 253, 0.1);
   color: #0d6efd;
+}
+
+.accordion-item {
+  border-radius: 0.25rem;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.accordion-header {
+  margin-bottom: 0;
 }
 
 /* Badge styling */
@@ -52,23 +68,62 @@
   background-color: rgba(13, 110, 253, 0.05);
 }
 
+.list-group-item-action.active {
+  background-color: #0d6efd;
+}
+
 /* Auth forms */
 .auth-form {
   max-width: 500px;
   margin: 0 auto;
 }
 
-/* Dashboard styling */
-.dashboard-stats {
-  background-color: #f8f9fa;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+/* Lesson content styling */
+.lesson-content {
+  font-size: 1.1rem;
+  line-height: 1.6;
 }
 
-/* Override some Bootstrap defaults */
+.lesson-content p {
+  margin-bottom: 1.2rem;
+}
+
+.lesson-content code {
+  background-color: #f8f9fa;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+}
+
+.lesson-content pre {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+/* Button hover effect */
 .btn {
   border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress bar styling */
+.progress {
+  height: 0.75rem;
+  border-radius: 1rem;
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+  background-color: transparent;
+  padding: 0.75rem 0;
 }
 
 /* Media queries for responsive design */
@@ -84,4 +139,17 @@
   .card-title {
     font-size: 1.25rem;
   }
+
+  .navbar-brand {
+    font-size: 1.2rem;
+  }
+}
+
+/* Utility classes */
+.shadow-sm {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.bg-light {
+  background-color: #f8f9fa !important;
 }

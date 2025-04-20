@@ -8,9 +8,21 @@ import {
   Alert,
   Spinner,
   Badge,
+  Breadcrumb,
 } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import {
+  FaChalkboardTeacher,
+  FaBook,
+  FaVideo,
+  FaQuestionCircle,
+  FaArrowLeft,
+  FaPencilAlt,
+  FaTrash,
+  FaCheckCircle,
+  FaUser,
+} from "react-icons/fa";
 
 function CourseDetail() {
   const { id } = useParams();
@@ -23,6 +35,9 @@ function CourseDetail() {
   const [error, setError] = useState("");
   const [activeModule, setActiveModule] = useState(null);
   const [activeLesson, setActiveLesson] = useState(null);
+  const [lessonContent, setLessonContent] = useState(null);
+  const [loadingLesson, setLoadingLesson] = useState(false);
+  const [enrollingInProgress, setEnrollingInProgress] = useState(false);
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -53,7 +68,9 @@ function CourseDetail() {
           setActiveModule(courseResponse.data.modules[0]);
 
           if (courseResponse.data.modules[0].lessons.length > 0) {
-            setActiveLesson(courseResponse.data.modules[0].lessons[0]);
+            const firstLesson = courseResponse.data.modules[0].lessons[0];
+            setActiveLesson(firstLesson);
+            fetchLessonContent(firstLesson.id);
           }
         }
       } catch (err) {
@@ -67,10 +84,33 @@ function CourseDetail() {
     fetchCourseData();
   }, [id, user]);
 
-  const enrollInCourse = async () => {
+  const fetchLessonContent = async (lessonId) => {
     try {
+      setLoadingLesson(true);
+      const response = await axios.get(`/api/lessons/${lessonId}`);
+      setLessonContent(response.data);
+    } catch (err) {
+      console.error("Error fetching lesson content:", err);
+    } finally {
+      setLoadingLesson(false);
+    }
+  };
+
+  const handleLessonSelect = (module, lesson) => {
+    setActiveModule(module);
+    setActiveLesson(lesson);
+    fetchLessonContent(lesson.id);
+  };
+
+  const enrollInCourse = async () => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setEnrollingInProgress(true);
       await axios.post("/api/enrollments", { courseId: parseInt(id) });
-      alert("Successfully enrolled in the course!");
 
       // Refresh the enrollment status
       const enrollmentsResponse = await axios.get("/api/enrollments/courses");
@@ -78,12 +118,15 @@ function CourseDetail() {
         (e) => e.id === parseInt(id),
       );
       setEnrollment(userEnrollment);
+      alert("Successfully enrolled in the course!");
     } catch (err) {
       alert(
         err.response?.data?.message ||
           "Failed to enroll in the course. Please try again.",
       );
       console.error(err);
+    } finally {
+      setEnrollingInProgress(false);
     }
   };
 
@@ -115,6 +158,12 @@ function CourseDetail() {
     );
   };
 
+  // Check if the current user is the instructor of this course
+  const isInstructor = () => {
+    if (!user || !course) return false;
+    return parseInt(user.id) === course.instructorId;
+  };
+
   if (loading) {
     return (
       <div className="text-center my-5">
@@ -136,8 +185,15 @@ function CourseDetail() {
 
   return (
     <div>
+      <Breadcrumb className="mb-4">
+        <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/courses" }}>
+          Courses
+        </Breadcrumb.Item>
+        <Breadcrumb.Item active>{course.title}</Breadcrumb.Item>
+      </Breadcrumb>
+
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>{course.title}</h1>
+        <h1 className="mb-0">{course.title}</h1>
 
         <div>
           {isInstructorOrAdmin() && (
@@ -146,62 +202,94 @@ function CourseDetail() {
                 as={Link}
                 to={`/courses/editor/${course.id}`}
                 variant="outline-primary"
-                className="me-2"
+                className="d-flex align-items-center gap-2"
               >
-                Edit Course Content
+                <FaBook /> Edit Content
               </Button>
               <Button
                 as={Link}
                 to={`/courses/edit/${course.id}`}
                 variant="outline-primary"
-                className="me-2"
+                className="d-flex align-items-center gap-2"
               >
-                Edit Course Details
+                <FaPencilAlt /> Edit Details
               </Button>
-              <Button variant="outline-danger" onClick={deleteCourse}>
-                Delete
+              <Button
+                variant="outline-danger"
+                onClick={deleteCourse}
+                className="d-flex align-items-center gap-2"
+              >
+                <FaTrash /> Delete
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      <Card className="mb-4">
+      <Card className="mb-4 shadow-sm">
         <Card.Body>
           <div className="d-md-flex justify-content-between">
             <div>
-              <p className="text-muted mb-2">
-                Instructor: {course.instructorName}
+              <p className="text-muted mb-2 d-flex align-items-center gap-2">
+                <FaChalkboardTeacher /> Instructor: {course.instructorName}
               </p>
               <p>{course.description}</p>
+
+              {isInstructor() && (
+                <Alert variant="info" className="mt-3 mb-0">
+                  <div className="d-flex align-items-center gap-2">
+                    <FaUser />
+                    <span>You are the instructor of this course</span>
+                  </div>
+                </Alert>
+              )}
             </div>
 
             <div className="ms-md-4 mt-3 mt-md-0">
               {user ? (
                 enrollment ? (
                   <div className="text-center">
-                    <Badge bg="success" className="p-2 mb-3">
-                      Enrolled
+                    <Badge
+                      bg="success"
+                      className="p-2 mb-3 d-flex align-items-center gap-2 mx-auto"
+                    >
+                      <FaCheckCircle /> Enrolled
                     </Badge>
-                    <p>Status: {enrollment.status}</p>
-                    {enrollment.status === "Completed" && (
-                      <p>
+                    <p className="mb-2">Status: {enrollment.status}</p>
+                    {enrollment.status === "Completed" ? (
+                      <p className="mb-0">
                         Completed on:{" "}
                         {new Date(
                           enrollment.completionDate,
                         ).toLocaleDateString()}
                       </p>
+                    ) : (
+                      <Button
+                        as={Link}
+                        to="#course-content"
+                        variant="primary"
+                        className="w-100"
+                        onClick={() => {
+                          document
+                            .getElementById("course-content")
+                            .scrollIntoView({ behavior: "smooth" });
+                        }}
+                      >
+                        Continue Learning
+                      </Button>
                     )}
                   </div>
                 ) : (
-                  user.role === "Student" && (
+                  user.role === "Student" &&
+                  !isInstructor() && (
                     <Button
                       variant="primary"
                       size="lg"
                       className="w-100"
                       onClick={enrollInCourse}
+                      disabled={enrollingInProgress}
                     >
-                      Enroll Now
+                      {enrollingInProgress ? "Enrolling..." : "Enroll Now"}
                     </Button>
                   )
                 )
@@ -218,11 +306,11 @@ function CourseDetail() {
         </Card.Body>
       </Card>
 
-      <div className="row">
+      <div className="row" id="course-content">
         <div className="col-md-4 mb-4 mb-md-0">
-          <Card>
-            <Card.Header>
-              <h3>Course Content</h3>
+          <Card className="shadow-sm">
+            <Card.Header className="bg-light">
+              <h3 className="h5 mb-0">Course Content</h3>
             </Card.Header>
             <Card.Body className="p-0">
               {course.modules.length > 0 ? (
@@ -245,13 +333,23 @@ function CourseDetail() {
                                 key={lesson.id}
                                 action
                                 active={activeLesson?.id === lesson.id}
-                                onClick={() => {
-                                  setActiveModule(module);
-                                  setActiveLesson(lesson);
-                                }}
+                                onClick={() =>
+                                  handleLessonSelect(module, lesson)
+                                }
                                 className="d-flex justify-content-between align-items-center"
                               >
-                                <div>{lesson.title}</div>
+                                <div className="d-flex align-items-center">
+                                  {lesson.type === "Text" && (
+                                    <FaBook className="me-2" />
+                                  )}
+                                  {lesson.type === "Video" && (
+                                    <FaVideo className="me-2" />
+                                  )}
+                                  {lesson.type === "Quiz" && (
+                                    <FaQuestionCircle className="me-2" />
+                                  )}
+                                  {lesson.title}
+                                </div>
                                 <Badge
                                   bg={getLessonTypeBadgeColor(lesson.type)}
                                 >
@@ -295,112 +393,146 @@ function CourseDetail() {
         </div>
 
         <div className="col-md-8">
-          <Card>
-            <Card.Header>
-              <h3>
+          <Card className="shadow-sm">
+            <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+              <h3 className="h5 mb-0">
                 {activeLesson
                   ? activeLesson.title
                   : activeModule
                     ? activeModule.title
                     : "Course Content"}
               </h3>
+              {activeModule && activeLesson && (
+                <Button
+                  variant="link"
+                  className="p-0 text-decoration-none"
+                  onClick={() => {
+                    setActiveLesson(null);
+                    setLessonContent(null);
+                  }}
+                >
+                  <FaArrowLeft className="me-1" /> Back to modules
+                </Button>
+              )}
             </Card.Header>
             <Card.Body>
-              {activeLesson ? (
-                <div>
-                  <p className="text-muted mb-4">
-                    Module: {activeModule.title} • Lesson Type:{" "}
-                    {activeLesson.type}
+              {/* Check if user can access content */}
+              {!user ? (
+                <Alert variant="warning">
+                  <p className="mb-3">Please login to view course content.</p>
+                  <Button as={Link} to="/login" variant="primary">
+                    Login
+                  </Button>
+                </Alert>
+              ) : !enrollment && !isInstructorOrAdmin() ? (
+                <Alert variant="info">
+                  <p className="mb-3">
+                    You need to enroll in this course to access its content.
                   </p>
-
-                  {/* Display lesson content based on type */}
-                  {activeLesson.type === "Text" && (
-                    <div>
-                      {/* This would be the actual lesson content from API */}
-                      <p>
-                        This is a sample text lesson content. In a real
-                        application, this would display the actual lesson
-                        content retrieved from the API.
-                      </p>
-                      <p>
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                        Sed do eiusmod tempor incididunt ut labore et dolore
-                        magna aliqua. Ut enim ad minim veniam, quis nostrud
-                        exercitation ullamco laboris nisi ut aliquip ex ea
-                        commodo consequat.
-                      </p>
-
-                      {isInstructorOrAdmin() && (
-                        <Alert variant="info" className="mt-4">
-                          <p className="mb-0">
-                            As an instructor, you can see that this is
-                            placeholder content. When you create real lessons,
-                            your actual content will be displayed here.
-                          </p>
-                        </Alert>
-                      )}
-                    </div>
-                  )}
-
-                  {activeLesson.type === "Video" && (
-                    <div className="text-center">
-                      <p>Video content would be displayed here.</p>
-                      <div className="bg-dark text-white p-5 d-flex align-items-center justify-content-center">
-                        <h4>Video Player Placeholder</h4>
-                      </div>
-
-                      {isInstructorOrAdmin() && (
-                        <Alert variant="info" className="mt-4">
-                          <p className="mb-0">
-                            When you create a video lesson, a video player will
-                            be displayed here.
-                          </p>
-                        </Alert>
-                      )}
-                    </div>
-                  )}
-
-                  {activeLesson.type === "Quiz" && (
-                    <div>
-                      <p>Quiz content would be displayed here.</p>
-                      <Alert variant="info">
-                        <p className="mb-0">
-                          This is a placeholder for quiz questions and answers.
-                        </p>
-                      </Alert>
-
-                      {isInstructorOrAdmin() && (
-                        <Alert variant="info" className="mt-4">
-                          <p className="mb-0">
-                            When you create a quiz lesson, interactive quiz
-                            questions will be displayed here.
-                          </p>
-                        </Alert>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  <Button
+                    onClick={enrollInCourse}
+                    variant="primary"
+                    disabled={enrollingInProgress}
+                  >
+                    {enrollingInProgress ? "Enrolling..." : "Enroll Now"}
+                  </Button>
+                </Alert>
               ) : (
-                <div className="text-center py-4">
-                  {course.modules.length > 0 ? (
-                    <p>
-                      Select a lesson from the course content to begin learning.
-                    </p>
-                  ) : (
-                    <p>This course doesn't have any content yet.</p>
-                  )}
+                <>
+                  {activeLesson ? (
+                    loadingLesson ? (
+                      <div className="text-center my-5">
+                        <Spinner animation="border" size="sm" />
+                        <p className="mt-2">Loading lesson content...</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-muted mb-4">
+                          Module: {activeModule.title} • Lesson Type:{" "}
+                          <Badge
+                            bg={getLessonTypeBadgeColor(activeLesson.type)}
+                          >
+                            {activeLesson.type}
+                          </Badge>
+                        </p>
 
-                  {isInstructorOrAdmin() && course.modules.length === 0 && (
-                    <Button
-                      as={Link}
-                      to={`/courses/editor/${course.id}`}
-                      variant="primary"
-                      className="mt-3"
-                    >
-                      Add Course Content
-                    </Button>
+                        {/* Display actual lesson content based on type */}
+                        {activeLesson.type === "Text" && lessonContent && (
+                          <div className="lesson-content">
+                            {lessonContent.content}
+                          </div>
+                        )}
+
+                        {activeLesson.type === "Video" && lessonContent && (
+                          <div className="text-center">
+                            {lessonContent.content.includes("youtube.com") ||
+                            lessonContent.content.includes("youtu.be") ? (
+                              <div className="ratio ratio-16x9">
+                                <iframe
+                                  src={lessonContent.content.replace(
+                                    "watch?v=",
+                                    "embed/",
+                                  )}
+                                  title={lessonContent.title}
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                ></iframe>
+                              </div>
+                            ) : (
+                              <div className="bg-dark text-white p-5 d-flex align-items-center justify-content-center">
+                                <h4>Video URL: {lessonContent.content}</h4>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {activeLesson.type === "Quiz" && lessonContent && (
+                          <div>
+                            <div className="lesson-content">
+                              {lessonContent.content}
+                            </div>
+                            <Alert variant="info" className="mt-4">
+                              <p className="mb-0">
+                                Quiz functionality will be implemented in a
+                                future update.
+                              </p>
+                            </Alert>
+                          </div>
+                        )}
+
+                        {!lessonContent && (
+                          <Alert variant="warning">
+                            <p className="mb-0">
+                              Failed to load lesson content. Please try again.
+                            </p>
+                          </Alert>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-center py-4">
+                      {course.modules.length > 0 ? (
+                        <p>
+                          Select a lesson from the course content to begin
+                          learning.
+                        </p>
+                      ) : (
+                        <p>This course doesn't have any content yet.</p>
+                      )}
+
+                      {isInstructorOrAdmin() && course.modules.length === 0 && (
+                        <Button
+                          as={Link}
+                          to={`/courses/editor/${course.id}`}
+                          variant="primary"
+                          className="mt-3"
+                        >
+                          Add Course Content
+                        </Button>
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </Card.Body>
           </Card>

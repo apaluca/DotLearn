@@ -8,26 +8,53 @@ import {
   InputGroup,
   Alert,
   Spinner,
+  Badge,
 } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import {
+  FaSearch,
+  FaTimes,
+  FaBook,
+  FaChalkboardTeacher,
+  FaUsers,
+  FaArrowRight,
+} from "react-icons/fa";
 
 function CourseList() {
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [filteredCourses, setFilteredCourses] = useState([]);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get("/api/courses");
-        setCourses(response.data);
-        setFilteredCourses(response.data);
+
+        // Fetch all courses
+        const coursesResponse = await axios.get("/api/courses");
+        setCourses(coursesResponse.data);
+        setFilteredCourses(coursesResponse.data);
+
+        // If user is logged in, get their enrollments to check which courses they're already in
+        if (user) {
+          try {
+            const enrollmentsResponse = await axios.get(
+              "/api/enrollments/courses",
+            );
+            const enrolledIds = new Set(
+              enrollmentsResponse.data.map((course) => course.id),
+            );
+            setEnrolledCourseIds(enrolledIds);
+          } catch (err) {
+            console.error("Error fetching enrollments:", err);
+          }
+        }
       } catch (err) {
         setError("Failed to load courses. Please try again later.");
         console.error(err);
@@ -36,8 +63,8 @@ function CourseList() {
       }
     };
 
-    fetchCourses();
-  }, []);
+    fetchData();
+  }, [user]);
 
   useEffect(() => {
     if (search.trim() === "") {
@@ -56,15 +83,18 @@ function CourseList() {
   }, [search, courses]);
 
   const enrollInCourse = async (courseId) => {
+    if (!user) {
+      alert("Please log in to enroll in this course.");
+      return;
+    }
+
     try {
       await axios.post("/api/enrollments", { courseId });
 
-      // Update the UI to show enrollment
-      alert("Successfully enrolled in the course!");
+      // Add to the enrolled courses set
+      setEnrolledCourseIds((prev) => new Set([...prev, courseId]));
 
-      // Refresh the course list
-      const response = await axios.get("/api/courses");
-      setCourses(response.data);
+      alert("Successfully enrolled in the course!");
     } catch (err) {
       alert(
         err.response?.data?.message ||
@@ -72,6 +102,15 @@ function CourseList() {
       );
       console.error(err);
     }
+  };
+
+  const isEnrolled = (courseId) => {
+    return enrolledCourseIds.has(courseId);
+  };
+
+  // Don't show enroll button if user is the instructor of the course
+  const isInstructor = (course) => {
+    return user && course.instructorId === parseInt(user.id);
   };
 
   if (loading) {
@@ -91,17 +130,25 @@ function CourseList() {
         <h1>All Courses</h1>
 
         {user && (user.role === "Instructor" || user.role === "Admin") && (
-          <Button as={Link} to="/courses/create" variant="primary">
-            Create Course
+          <Button
+            as={Link}
+            to="/courses/create"
+            variant="primary"
+            className="d-flex align-items-center gap-2"
+          >
+            <FaBook /> Create Course
           </Button>
         )}
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Card className="mb-4">
+      <Card className="mb-4 shadow-sm">
         <Card.Body>
           <InputGroup className="mb-3">
+            <InputGroup.Text>
+              <FaSearch />
+            </InputGroup.Text>
             <Form.Control
               placeholder="Search courses by title, description, or instructor..."
               value={search}
@@ -109,7 +156,7 @@ function CourseList() {
             />
             {search && (
               <Button variant="outline-secondary" onClick={() => setSearch("")}>
-                Clear
+                <FaTimes />
               </Button>
             )}
           </InputGroup>
@@ -126,40 +173,60 @@ function CourseList() {
             <Col key={course.id}>
               <Card className="h-100 shadow-sm">
                 <Card.Body>
-                  <Card.Title>{course.title}</Card.Title>
-                  <Card.Subtitle className="mb-2 text-muted">
-                    Instructor: {course.instructorName}
+                  <Card.Title className="mb-3">{course.title}</Card.Title>
+                  <Card.Subtitle className="mb-3 text-muted d-flex align-items-center gap-2">
+                    <FaChalkboardTeacher /> {course.instructorName}
                   </Card.Subtitle>
                   <Card.Text>
                     {course.description.length > 150
                       ? course.description.substring(0, 150) + "..."
                       : course.description}
                   </Card.Text>
-                  <Card.Text>
+                  <div className="d-flex align-items-center mb-3">
+                    <FaUsers className="text-muted me-2" />
                     <small className="text-muted">
                       {course.enrollmentCount} student
                       {course.enrollmentCount !== 1 ? "s" : ""} enrolled
                     </small>
-                  </Card.Text>
+                  </div>
+
+                  {isEnrolled(course.id) && (
+                    <Badge bg="success" className="mb-2">
+                      You're enrolled
+                    </Badge>
+                  )}
+
+                  {isInstructor(course) && (
+                    <Badge bg="info" className="mb-2">
+                      You're the instructor
+                    </Badge>
+                  )}
                 </Card.Body>
-                <Card.Footer>
+                <Card.Footer className="bg-white">
                   <div className="d-grid gap-2">
                     <Button
                       as={Link}
                       to={`/courses/${course.id}`}
-                      variant="primary"
+                      variant={isEnrolled(course.id) ? "success" : "primary"}
+                      className="d-flex align-items-center justify-content-center gap-2"
                     >
-                      View Course
+                      {isEnrolled(course.id)
+                        ? "Continue Learning"
+                        : "View Course"}
+                      <FaArrowRight />
                     </Button>
 
-                    {user && user.role === "Student" && (
-                      <Button
-                        variant="outline-primary"
-                        onClick={() => enrollInCourse(course.id)}
-                      >
-                        Enroll
-                      </Button>
-                    )}
+                    {user &&
+                      user.role === "Student" &&
+                      !isEnrolled(course.id) &&
+                      !isInstructor(course) && (
+                        <Button
+                          variant="outline-primary"
+                          onClick={() => enrollInCourse(course.id)}
+                        >
+                          Enroll
+                        </Button>
+                      )}
                   </div>
                 </Card.Footer>
               </Card>
@@ -167,9 +234,18 @@ function CourseList() {
           ))}
         </Row>
       ) : (
-        <div className="text-center py-5">
-          <p>No courses found matching your search criteria.</p>
-        </div>
+        <Card className="text-center py-5 shadow-sm">
+          <Card.Body>
+            <p className="mb-3">
+              No courses found matching your search criteria.
+            </p>
+            {search && (
+              <Button variant="outline-primary" onClick={() => setSearch("")}>
+                Clear Search
+              </Button>
+            )}
+          </Card.Body>
+        </Card>
       )}
     </div>
   );
