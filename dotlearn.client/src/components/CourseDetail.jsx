@@ -48,6 +48,11 @@ function CourseDetail() {
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
+        if (!id) {
+          setError("Course ID is missing. Please return to the course list.");
+          setLoading(false);
+          return;
+        }
         setLoading(true);
 
         // Get course details

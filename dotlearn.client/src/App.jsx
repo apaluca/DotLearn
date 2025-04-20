@@ -58,7 +58,7 @@ function AppContent() {
           <Route path="/courses" element={<CourseList />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
           <Route
-            path="/courses/:courseId/lesson/:lessonId"
+            path="/courses/:id/lesson/:lessonId"
             element={user ? <CourseDetail /> : <Navigate to="/login" />}
           />
           <Route
