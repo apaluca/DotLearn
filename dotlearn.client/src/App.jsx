@@ -16,6 +16,8 @@ import CreateCourse from "./components/CreateCourse";
 import EditCourse from "./components/EditCourse";
 import CourseEditor from "./components/CourseEditor";
 import Profile from "./components/Profile";
+import AdminDashboard from "./components/admin/AdminDashboard";
+import CourseProgress from "./components/CourseProgress";
 import Footer from "./components/Footer";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -56,6 +58,10 @@ function AppContent() {
           <Route path="/courses" element={<CourseList />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
           <Route
+            path="/courses/:courseId/lesson/:lessonId"
+            element={user ? <CourseDetail /> : <Navigate to="/login" />}
+          />
+          <Route
             path="/courses/create"
             element={
               user && (user.role === "Instructor" || user.role === "Admin") ? (
@@ -75,7 +81,6 @@ function AppContent() {
               )
             }
           />
-          {/* Add this new route for the course content editor */}
           <Route
             path="/courses/editor/:id"
             element={
@@ -87,8 +92,22 @@ function AppContent() {
             }
           />
           <Route
+            path="/courses/:id/progress"
+            element={user ? <CourseProgress /> : <Navigate to="/login" />}
+          />
+          <Route
             path="/profile"
             element={user ? <Profile /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/admin"
+            element={
+              user && user.role === "Admin" ? (
+                <AdminDashboard />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
           />
           <Route
             path="/"

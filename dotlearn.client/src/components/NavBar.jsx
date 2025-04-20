@@ -9,6 +9,7 @@ import {
   FaChalkboardTeacher,
   FaPlus,
   FaUserGraduate,
+  FaUserShield,
 } from "react-icons/fa";
 
 function NavBar() {
@@ -56,6 +57,15 @@ function NavBar() {
                     className="d-flex align-items-center"
                   >
                     <FaPlus className="me-2" /> Create Course
+                  </Nav.Link>
+                )}
+                {user.role === "Admin" && (
+                  <Nav.Link
+                    as={Link}
+                    to="/admin"
+                    className="d-flex align-items-center"
+                  >
+                    <FaUserShield className="me-2" /> Admin
                   </Nav.Link>
                 )}
               </>
