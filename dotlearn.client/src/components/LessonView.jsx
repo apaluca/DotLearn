@@ -7,9 +7,9 @@ import {
   FaArrowLeft,
   FaArrowRight,
   FaTimes,
+  FaEdit,
 } from "react-icons/fa";
 import Quiz from "./Quiz";
-import QuizEditor from "./QuizEditor";
 
 function LessonView({
   lesson,
@@ -27,6 +27,7 @@ function LessonView({
     startedAt: null,
     completedAt: null,
   });
+  const [quizData, setQuizData] = useState(null);
   const [markingComplete, setMarkingComplete] = useState(false);
 
   useEffect(() => {
@@ -43,6 +44,18 @@ function LessonView({
       // Fetch lesson content
       const response = await axios.get(`/api/lessons/${lesson.id}`);
       setContent(response.data);
+
+      // If this is a quiz, fetch quiz data for instructor preview
+      if (lesson.type === "Quiz" && isInstructor) {
+        try {
+          const quizResponse = await axios.get(
+            `/api/quizzes/lesson/${lesson.id}`,
+          );
+          setQuizData(quizResponse.data);
+        } catch (err) {
+          console.error("Error fetching quiz data:", err);
+        }
+      }
 
       // Mark lesson as started (only for non-instructors)
       if (!isInstructor) {
@@ -177,19 +190,103 @@ function LessonView({
     return <Alert variant="warning">Lesson content not found.</Alert>;
   }
 
+  // Instructor viewing a quiz - show preview instead of editor
+  if (lesson.type === "Quiz" && isInstructor) {
+    return (
+      <Card className="shadow-sm">
+        <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+          <h3 className="h5 mb-0">Quiz Preview</h3>
+        </Card.Header>
+        <Card.Body>
+          {quizData ? (
+            <div>
+              <p className="mb-4">
+                This quiz contains {quizData.questions.length} question(s).
+              </p>
+
+              {quizData.questions.map((question, index) => (
+                <Card key={question.id} className="mb-3">
+                  <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+                    <span>Question {index + 1}</span>
+                    <Badge
+                      bg={
+                        question.questionType === "SingleChoice"
+                          ? "primary"
+                          : "info"
+                      }
+                    >
+                      {question.questionType === "SingleChoice"
+                        ? "Single Choice"
+                        : "Multiple Choice"}
+                    </Badge>
+                  </Card.Header>
+                  <Card.Body>
+                    <p className="mb-3">{question.questionText}</p>
+                    <ul className="list-group">
+                      {question.options.map((option) => (
+                        <li
+                          key={option.id}
+                          className="list-group-item d-flex justify-content-between align-items-center"
+                        >
+                          {option.optionText}
+                          {option.isCorrect && (
+                            <Badge bg="success">Correct Answer</Badge>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card.Body>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Alert variant="info">
+              <p className="mb-0">
+                This quiz has no questions yet. Please use the Course Editor to
+                add questions.
+              </p>
+            </Alert>
+          )}
+
+          <div className="d-flex justify-content-between mt-4">
+            <div>
+              {prevLesson && (
+                <Button
+                  as={Link}
+                  to={`/courses/${content.courseId}/lesson/${prevLesson.id}`}
+                  variant="outline-primary"
+                  className="d-flex align-items-center gap-2"
+                >
+                  <FaArrowLeft /> Previous Lesson
+                </Button>
+              )}
+            </div>
+
+            <div>
+              {nextLesson && (
+                <Button
+                  as={Link}
+                  to={`/courses/${content.courseId}/lesson/${nextLesson.id}`}
+                  variant="outline-primary"
+                  className="d-flex align-items-center gap-2"
+                >
+                  Next Lesson <FaArrowRight />
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
+    );
+  }
+
   return (
     <Card className="shadow-sm">
       <Card.Body>
         {/* Display content based on lesson type */}
         {lesson.type === "Quiz" ? (
-          // Show different components for Quiz based on instructor status
-          isInstructor ? (
-            // Show QuizEditor for instructors
-            <QuizEditor lessonId={lesson.id} />
-          ) : (
-            // Show Quiz component for students
-            <Quiz lessonId={lesson.id} onQuizComplete={handleQuizComplete} />
-          )
+          // Only show Quiz component for students
+          <Quiz lessonId={lesson.id} onQuizComplete={handleQuizComplete} />
         ) : lesson.type === "Video" ? (
           <div className="mb-4">
             <div className="ratio ratio-16x9">
