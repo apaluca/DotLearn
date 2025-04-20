@@ -16,16 +16,14 @@ import { useAuth } from "../context/AuthContext";
 import LessonView from "./LessonView";
 import {
   FaChalkboardTeacher,
+  FaUsers,
   FaBook,
   FaVideo,
   FaQuestionCircle,
-  FaArrowLeft,
-  FaArrowRight,
   FaPencilAlt,
   FaTrash,
   FaCheckCircle,
   FaUser,
-  FaFlag,
   FaChartLine,
 } from "react-icons/fa";
 
@@ -573,93 +571,71 @@ function CourseDetail() {
         </div>
 
         <div className="col-md-8">
-          <Card className="shadow-sm">
-            <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-              <h3 className="h5 mb-0">
-                {activeLesson
-                  ? activeLesson.title
-                  : activeModule
-                    ? activeModule.title
-                    : "Course Content"}
-              </h3>
-              {activeModule && activeLesson && (
-                <Button
-                  variant="link"
-                  className="p-0 text-decoration-none"
-                  onClick={() => {
-                    setActiveLesson(null);
-                  }}
-                >
-                  <FaArrowLeft className="me-1" /> Back to modules
+          <Card.Body>
+            {/* Check if user can access content */}
+            {!user ? (
+              <Alert variant="warning">
+                <p className="mb-3">Please login to view course content.</p>
+                <Button as={Link} to="/login" variant="primary">
+                  Login
                 </Button>
-              )}
-            </Card.Header>
-            <Card.Body>
-              {/* Check if user can access content */}
-              {!user ? (
-                <Alert variant="warning">
-                  <p className="mb-3">Please login to view course content.</p>
-                  <Button as={Link} to="/login" variant="primary">
-                    Login
-                  </Button>
-                </Alert>
-              ) : !enrollment && !isInstructorOrAdmin() ? (
-                <Alert variant="info">
-                  <p className="mb-3">
-                    You need to enroll in this course to access its content.
-                  </p>
-                  <Button
-                    onClick={enrollInCourse}
-                    variant="primary"
-                    disabled={enrollingInProgress}
-                  >
-                    {enrollingInProgress ? "Enrolling..." : "Enroll Now"}
-                  </Button>
-                </Alert>
-              ) : (
-                <>
-                  {activeLesson ? (
-                    loadingLesson ? (
-                      <div className="text-center my-5">
-                        <Spinner animation="border" size="sm" />
-                        <p className="mt-2">Loading lesson content...</p>
-                      </div>
-                    ) : (
-                      <LessonView
-                        lesson={activeLesson}
-                        moduleTitle={activeModule.title}
-                        onLessonComplete={handleLessonComplete}
-                        nextLesson={getNextLesson()}
-                        prevLesson={getPreviousLesson()}
-                      />
-                    )
-                  ) : (
-                    <div className="text-center py-4">
-                      {modules.length > 0 ? (
-                        <p>
-                          Select a lesson from the course content to begin
-                          learning.
-                        </p>
-                      ) : (
-                        <p>This course doesn't have any content yet.</p>
-                      )}
-
-                      {isInstructorOrAdmin() && modules.length === 0 && (
-                        <Button
-                          as={Link}
-                          to={`/courses/editor/${course.id}`}
-                          variant="primary"
-                          className="mt-3"
-                        >
-                          Add Course Content
-                        </Button>
-                      )}
+              </Alert>
+            ) : !enrollment && !isInstructorOrAdmin() ? (
+              <Alert variant="info">
+                <p className="mb-3">
+                  You need to enroll in this course to access its content.
+                </p>
+                <Button
+                  onClick={enrollInCourse}
+                  variant="primary"
+                  disabled={enrollingInProgress}
+                >
+                  {enrollingInProgress ? "Enrolling..." : "Enroll Now"}
+                </Button>
+              </Alert>
+            ) : (
+              <>
+                {activeLesson ? (
+                  loadingLesson ? (
+                    <div className="text-center my-5">
+                      <Spinner animation="border" size="sm" />
+                      <p className="mt-2">Loading lesson content...</p>
                     </div>
-                  )}
-                </>
-              )}
-            </Card.Body>
-          </Card>
+                  ) : (
+                    <LessonView
+                      lesson={activeLesson}
+                      moduleTitle={activeModule.title}
+                      onLessonComplete={handleLessonComplete}
+                      nextLesson={getNextLesson()}
+                      prevLesson={getPreviousLesson()}
+                    />
+                  )
+                ) : (
+                  <div className="text-center py-4">
+                    {modules.length > 0 ? (
+                      <p>
+                        Select a lesson from the course content to begin
+                        learning.
+                      </p>
+                    ) : (
+                      <p>This course doesn't have any content yet.</p>
+                    )}
+
+                    {isInstructorOrAdmin() && modules.length === 0 && (
+                      <Button
+                        as={Link}
+                        to={`/courses/editor/${course.id}`}
+                        variant="primary"
+                        className="mt-3"
+                      >
+                        Add Course Content
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </Card.Body>
         </div>
       </div>
     </div>
