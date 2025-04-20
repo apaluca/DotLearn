@@ -9,8 +9,7 @@ import {
   Badge,
 } from "react-bootstrap";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { FaCheck, FaTimes, FaArrowRight, FaRedo } from "react-icons/fa";
+import { FaCheck, FaTimes, FaRedo } from "react-icons/fa";
 
 function Quiz({ lessonId, onQuizComplete }) {
   const [quiz, setQuiz] = useState(null);
@@ -21,8 +20,6 @@ function Quiz({ lessonId, onQuizComplete }) {
   const [error, setError] = useState("");
   const [quizResult, setQuizResult] = useState(null);
   const [showResults, setShowResults] = useState(false);
-
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -217,13 +214,6 @@ function Quiz({ lessonId, onQuizComplete }) {
                 <FaRedo /> Retry Quiz
               </Button>
             )}
-            <Button
-              variant="success"
-              className="ms-auto d-flex align-items-center gap-2"
-              onClick={() => navigate(-1)}
-            >
-              Continue <FaArrowRight />
-            </Button>
           </div>
         </Card.Body>
       </Card>
@@ -286,24 +276,6 @@ function Quiz({ lessonId, onQuizComplete }) {
           )}
         </div>
       </Card.Body>
-      <Card.Footer className="bg-light">
-        <div className="d-flex justify-content-between align-items-center">
-          <span>
-            Questions answered: {Object.keys(selectedOptions).length}/
-            {quiz.questions.length}
-          </span>
-          {Object.keys(selectedOptions).length === quiz.questions.length && (
-            <Button
-              variant="success"
-              size="sm"
-              onClick={handleSubmitQuiz}
-              disabled={submitting}
-            >
-              {submitting ? "Submitting..." : "Submit Quiz"}
-            </Button>
-          )}
-        </div>
-      </Card.Footer>
     </Card>
   );
 }
