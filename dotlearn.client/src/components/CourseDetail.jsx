@@ -608,6 +608,7 @@ function CourseDetail() {
                       onLessonComplete={handleLessonComplete}
                       nextLesson={getNextLesson()}
                       prevLesson={getPreviousLesson()}
+                      isInstructor={isInstructor()}
                     />
                   )
                 ) : (

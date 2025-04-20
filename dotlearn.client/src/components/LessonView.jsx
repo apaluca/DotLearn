@@ -6,7 +6,13 @@ import { Link } from "react-router-dom";
 import { FaCheckCircle, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import Quiz from "./Quiz";
 
-function LessonView({ lesson, onLessonComplete, nextLesson, prevLesson }) {
+function LessonView({
+  lesson,
+  onLessonComplete,
+  nextLesson,
+  prevLesson,
+  isInstructor = false,
+}) {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -166,31 +172,33 @@ function LessonView({ lesson, onLessonComplete, nextLesson, prevLesson }) {
           </div>
 
           <div className="d-flex gap-2">
-            {!progress.isCompleted && lesson.type !== "Quiz" && (
-              <Button
-                variant="success"
-                onClick={handleMarkComplete}
-                disabled={markingComplete}
-                className="d-flex align-items-center gap-2"
-              >
-                {markingComplete ? (
-                  <>
-                    <Spinner
-                      as="span"
-                      animation="border"
-                      size="sm"
-                      role="status"
-                      aria-hidden="true"
-                    />{" "}
-                    Marking...
-                  </>
-                ) : (
-                  <>
-                    <FaCheckCircle /> Mark as Complete
-                  </>
-                )}
-              </Button>
-            )}
+            {!progress.isCompleted &&
+              lesson.type !== "Quiz" &&
+              !isInstructor && (
+                <Button
+                  variant="success"
+                  onClick={handleMarkComplete}
+                  disabled={markingComplete}
+                  className="d-flex align-items-center gap-2"
+                >
+                  {markingComplete ? (
+                    <>
+                      <Spinner
+                        as="span"
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        aria-hidden="true"
+                      />{" "}
+                      Marking...
+                    </>
+                  ) : (
+                    <>
+                      <FaCheckCircle /> Mark as Complete
+                    </>
+                  )}
+                </Button>
+              )}
 
             {nextLesson && (
               <Button
