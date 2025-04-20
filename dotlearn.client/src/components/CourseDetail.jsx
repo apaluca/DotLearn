@@ -87,10 +87,30 @@ function CourseDetail() {
   const fetchLessonContent = async (lessonId) => {
     try {
       setLoadingLesson(true);
+      setLessonContent(null); // Clear previous lesson content
       const response = await axios.get(`/api/lessons/${lessonId}`);
       setLessonContent(response.data);
     } catch (err) {
       console.error("Error fetching lesson content:", err);
+      // Check for specific error types to provide better feedback
+      if (err.response) {
+        if (err.response.status === 403) {
+          alert(
+            "You don't have permission to access this lesson. Please make sure you're enrolled in this course.",
+          );
+        } else if (err.response.status === 404) {
+          alert("Lesson not found. It may have been deleted or moved.");
+        } else {
+          alert(
+            `Error loading lesson: ${err.response.data || "Unknown error occurred"}`,
+          );
+        }
+      } else if (err.request) {
+        // Request was made but no response received
+        alert("Network error. Please check your connection and try again.");
+      } else {
+        alert("Failed to load lesson content. Please try again later.");
+      }
     } finally {
       setLoadingLesson(false);
     }
