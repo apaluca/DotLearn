@@ -43,8 +43,11 @@ function LessonModal({
 
   // Quiz state
   const [questions, setQuestions] = useState([]);
+  const [originalQuestions, setOriginalQuestions] = useState([]);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [savingOption, setSavingOption] = useState(false);
+  const [deletingOption, setDeletingOption] = useState(false);
 
   // Other state
   const [activeTab, setActiveTab] = useState("edit");
@@ -79,6 +82,7 @@ function LessonModal({
       } else {
         // Reset questions for new quizzes
         setQuestions([]);
+        setOriginalQuestions([]);
         setActiveQuestionIndex(0);
       }
     }
@@ -90,11 +94,14 @@ function LessonModal({
       const response = await axios.get(`/api/quizzes/lesson/${lessonId}`);
 
       if (response.data && response.data.questions) {
-        // Ensure we have the correct answers information - should be available for instructors
-        setQuestions(response.data.questions);
+        // Create a deep copy of the questions to keep as original reference
+        const fetchedQuestions = response.data.questions;
+        setQuestions(fetchedQuestions);
+        setOriginalQuestions(JSON.parse(JSON.stringify(fetchedQuestions)));
         setActiveQuestionIndex(0);
       } else {
         setQuestions([]);
+        setOriginalQuestions([]);
       }
     } catch (err) {
       console.error("Error fetching quiz data:", err);
@@ -103,6 +110,7 @@ function LessonModal({
         setError("Failed to load quiz questions. Please try again.");
       }
       setQuestions([]);
+      setOriginalQuestions([]);
     } finally {
       setLoadingQuiz(false);
     }
@@ -126,6 +134,7 @@ function LessonModal({
       setPreviewContent("");
       setVideoPreviewUrl("");
       setQuestions([]);
+      setOriginalQuestions([]);
       setActiveQuestionIndex(0);
     }
   };
@@ -177,7 +186,6 @@ function LessonModal({
         { optionText: "", isCorrect: false },
         { optionText: "", isCorrect: false },
       ],
-      // Flag to indicate new questions
       isNew: true,
     };
 
@@ -193,7 +201,31 @@ function LessonModal({
 
   const handleQuestionTypeChange = (e) => {
     const updatedQuestions = [...questions];
-    updatedQuestions[activeQuestionIndex].questionType = e.target.value;
+    const oldType = updatedQuestions[activeQuestionIndex].questionType;
+    const newType = e.target.value;
+
+    updatedQuestions[activeQuestionIndex].questionType = newType;
+
+    // If changing from multiple to single choice, ensure only one option is selected
+    if (oldType === "MultipleChoice" && newType === "SingleChoice") {
+      const options = updatedQuestions[activeQuestionIndex].options;
+      const hasCorrectOption = options.some((o) => o.isCorrect);
+
+      // If multiple options are selected, keep only the first correct one
+      if (hasCorrectOption) {
+        let foundCorrect = false;
+        options.forEach((option) => {
+          if (option.isCorrect) {
+            if (foundCorrect) {
+              option.isCorrect = false;
+            } else {
+              foundCorrect = true;
+            }
+          }
+        });
+      }
+    }
+
     setQuestions(updatedQuestions);
   };
 
@@ -203,53 +235,135 @@ function LessonModal({
     setQuestions(updatedQuestions);
   };
 
-  const addOptionToQuestion = () => {
-    const updatedQuestions = [...questions];
-    if (updatedQuestions[activeQuestionIndex].options.length < 5) {
+  const addOptionToQuestion = async () => {
+    const currentQuestion = questions[activeQuestionIndex];
+
+    // Limit to 5 options max
+    if (currentQuestion.options.length >= 5) {
+      return;
+    }
+
+    // For new questions, just update the state
+    if (!currentQuestion.id || currentQuestion.isNew) {
+      const updatedQuestions = [...questions];
       updatedQuestions[activeQuestionIndex].options.push({
         optionText: "",
         isCorrect: false,
+        isNew: true,
       });
       setQuestions(updatedQuestions);
+      return;
+    }
+
+    // For existing questions, call the API endpoint
+    try {
+      setSavingOption(true);
+      setError("");
+
+      const response = await axios.post(
+        `/api/quizzes/questions/${currentQuestion.id}/options`,
+        {
+          optionText: "",
+        },
+      );
+
+      // Update the questions state with the new option
+      const updatedQuestions = [...questions];
+      updatedQuestions[activeQuestionIndex].options.push({
+        id: response.data.id,
+        optionText: response.data.optionText,
+        isCorrect: response.data.isCorrect || false,
+      });
+
+      setQuestions(updatedQuestions);
+    } catch (err) {
+      console.error("Error adding option:", err);
+      setError(err.response?.data?.message || "Failed to add option");
+    } finally {
+      setSavingOption(false);
     }
   };
 
-  const removeOptionFromQuestion = (index) => {
-    const updatedQuestions = [...questions];
-    if (updatedQuestions[activeQuestionIndex].options.length > 2) {
+  const removeOptionFromQuestion = async (index) => {
+    const currentQuestion = questions[activeQuestionIndex];
+    const option = currentQuestion.options[index];
+
+    // Ensure we have at least 2 options
+    if (currentQuestion.options.length <= 2) {
+      return;
+    }
+
+    // For new questions, just update the state
+    if (!currentQuestion.id || currentQuestion.isNew || !option.id) {
+      const updatedQuestions = [...questions];
       updatedQuestions[activeQuestionIndex].options.splice(index, 1);
       setQuestions(updatedQuestions);
+      return;
+    }
+
+    // For existing questions, call the API endpoint
+    try {
+      setDeletingOption(true);
+      setError("");
+
+      await axios.delete(`/api/quizzes/options/${option.id}`);
+
+      // Update the questions state by removing the option
+      const updatedQuestions = [...questions];
+      updatedQuestions[activeQuestionIndex].options.splice(index, 1);
+
+      setQuestions(updatedQuestions);
+    } catch (err) {
+      console.error("Error removing option:", err);
+      setError(err.response?.data?.message || "Failed to remove option");
+    } finally {
+      setDeletingOption(false);
     }
   };
 
-  const markOptionAsCorrect = (index) => {
+  const markOptionAsCorrect = async (index) => {
     const updatedQuestions = [...questions];
-    const questionType = updatedQuestions[activeQuestionIndex].questionType;
+    const currentQuestion = updatedQuestions[activeQuestionIndex];
+    const questionType = currentQuestion.questionType;
+    const option = currentQuestion.options[index];
 
     // For single choice, unmark all others
     if (questionType === "SingleChoice") {
-      updatedQuestions[activeQuestionIndex].options.forEach((option, i) => {
-        option.isCorrect = i === index;
+      currentQuestion.options.forEach((opt, i) => {
+        opt.isCorrect = i === index;
       });
     } else {
       // For multiple choice, toggle this option
-      updatedQuestions[activeQuestionIndex].options[index].isCorrect =
-        !updatedQuestions[activeQuestionIndex].options[index].isCorrect;
+      option.isCorrect = !option.isCorrect;
+    }
+
+    // If this is an existing option and question, update via API
+    if (currentQuestion.id && option.id && !currentQuestion.isNew) {
+      try {
+        setError("");
+
+        if (questionType === "SingleChoice") {
+          await axios.put(`/api/quizzes/options/${option.id}/correct`);
+        } else {
+          await axios.put(`/api/quizzes/options/${option.id}/toggle-correct`);
+        }
+      } catch (err) {
+        console.error("Error updating option correctness:", err);
+        setError(err.response?.data?.message || "Failed to update option");
+
+        // Revert the change on error
+        fetchQuizData(lessonData.lessonId);
+        return;
+      }
     }
 
     setQuestions(updatedQuestions);
   };
 
-  const removeQuestion = (index) => {
-    if (questions.length > 1) {
-      const updatedQuestions = [...questions];
-      updatedQuestions.splice(index, 1);
-      setQuestions(updatedQuestions);
-      // Adjust active index if needed
-      if (activeQuestionIndex >= updatedQuestions.length) {
-        setActiveQuestionIndex(updatedQuestions.length - 1);
-      }
-    } else {
+  const removeQuestion = async (index) => {
+    const questionToRemove = questions[index];
+
+    if (questions.length <= 1) {
       // If it's the last question, just clear it
       setQuestions([
         {
@@ -262,6 +376,36 @@ function LessonModal({
           isNew: true,
         },
       ]);
+      setActiveQuestionIndex(0);
+      return;
+    }
+
+    // If it's an existing question, delete it from the backend
+    if (questionToRemove.id && !questionToRemove.isNew) {
+      try {
+        setError("");
+        await axios.delete(`/api/quizzes/questions/${questionToRemove.id}`);
+      } catch (err) {
+        console.error(`Error deleting question ${questionToRemove.id}:`, err);
+        setError(err.response?.data?.message || "Failed to delete question");
+        return;
+      }
+    }
+
+    // Update local state
+    const updatedQuestions = [...questions];
+    updatedQuestions.splice(index, 1);
+    setQuestions(updatedQuestions);
+
+    // Adjust active index if needed
+    if (activeQuestionIndex >= updatedQuestions.length) {
+      setActiveQuestionIndex(updatedQuestions.length - 1);
+    } else if (activeQuestionIndex === index) {
+      // If we're deleting the active question, set to the same index (which will be the next question)
+      // or the previous one if we're deleting the last question
+      setActiveQuestionIndex(
+        Math.min(activeQuestionIndex, updatedQuestions.length - 1),
+      );
     }
   };
 
@@ -330,16 +474,35 @@ function LessonModal({
       const savedLesson = await onSubmit(formData);
 
       // If it's a quiz and we have questions, save them too
-      if (formData.type === "Quiz" && questions.length > 0 && savedLesson) {
+      if (formData.type === "Quiz" && savedLesson) {
         const lessonId = savedLesson.id || lessonData?.lessonId;
 
-        // Save each question and its options
-        for (const question of questions) {
-          let questionId;
+        // 1. Process deletion of questions that don't exist anymore
+        if (isEditing && originalQuestions.length > 0) {
+          // Find question IDs that were in original but not in current questions
+          const originalIds = new Set(
+            originalQuestions.map((q) => q.id).filter((id) => id),
+          ); // Filter out undefined/null
+          const currentIds = new Set(
+            questions.map((q) => q.id).filter((id) => id),
+          );
 
-          // For new questions
+          // Delete questions that are no longer present
+          for (const id of originalIds) {
+            if (!currentIds.has(id)) {
+              try {
+                await axios.delete(`/api/quizzes/questions/${id}`);
+              } catch (err) {
+                console.error(`Error deleting question ${id}:`, err);
+              }
+            }
+          }
+        }
+
+        // 2. Process each question - create new ones or update existing ones
+        for (const question of questions) {
           if (!question.id || question.isNew) {
-            // Create the question first
+            // Create completely new question with all its options
             const questionResponse = await axios.post(
               `/api/quizzes/lesson/${lessonId}/questions`,
               {
@@ -347,19 +510,16 @@ function LessonModal({
                 questionType: question.questionType,
                 options: question.options.map((o) => ({
                   optionText: o.optionText,
-                })), // Just send the text initially
+                })),
               },
             );
 
-            questionId = questionResponse.data.id;
-
-            // Now set the correct options using dedicated endpoints
+            // Set correct options for the new question
             for (let i = 0; i < question.options.length; i++) {
               const option = question.options[i];
               if (option.isCorrect) {
                 const optionId = questionResponse.data.options[i].id;
 
-                // Use the specific endpoint to mark this option as correct
                 if (question.questionType === "SingleChoice") {
                   await axios.put(`/api/quizzes/options/${optionId}/correct`);
                 } else {
@@ -370,56 +530,38 @@ function LessonModal({
               }
             }
           } else {
-            // For existing questions
-            questionId = question.id;
+            // Update existing question
+            const questionId = question.id;
 
-            // Update the question text and type
+            // Update question text and type
             await axios.put(`/api/quizzes/questions/${questionId}`, {
               questionText: question.questionText,
               questionType: question.questionType,
             });
 
-            // For each option
-            for (let i = 0; i < question.options.length; i++) {
-              const option = question.options[i];
-
-              // Update option text if needed
+            // Update option text for each option
+            for (const option of question.options) {
               if (option.id) {
-                // If option exists but correct state changed, update it
-                const shouldBeCorrect = option.isCorrect;
-                const isCurrentlyCorrect = option.originalIsCorrect;
-
-                if (shouldBeCorrect !== isCurrentlyCorrect) {
-                  // Use correct endpoint based on question type
-                  if (question.questionType === "SingleChoice") {
-                    await axios.put(
-                      `/api/quizzes/options/${option.id}/correct`,
-                    );
-                  } else {
-                    await axios.put(
-                      `/api/quizzes/options/${option.id}/toggle-correct`,
-                    );
-                  }
-                }
-              } else {
-                // If new option, create it and mark as correct if needed
-                const newOptionResponse = await axios.post(
-                  `/api/quizzes/questions/${questionId}/options`,
-                  {
-                    optionText: option.optionText,
-                  },
+                // Update option text if needed
+                const originalQuestion = originalQuestions.find(
+                  (q) => q.id === question.id,
                 );
+                if (!originalQuestion) continue;
 
-                if (option.isCorrect) {
-                  const newOptionId = newOptionResponse.data.id;
-                  if (question.questionType === "SingleChoice") {
-                    await axios.put(
-                      `/api/quizzes/options/${newOptionId}/correct`,
-                    );
-                  } else {
-                    await axios.put(
-                      `/api/quizzes/options/${newOptionId}/toggle-correct`,
-                    );
+                const originalOption = originalQuestion.options.find(
+                  (o) => o.id === option.id,
+                );
+                if (!originalOption) continue;
+
+                // If option text changed, update it
+                if (option.optionText !== originalOption.optionText) {
+                  try {
+                    await axios.put(`/api/quizzes/options/${option.id}`, {
+                      optionText: option.optionText,
+                    });
+                  } catch (err) {
+                    console.error(`Error updating option text:`, err);
+                    // Continue despite errors
                   }
                 }
               }
@@ -436,6 +578,9 @@ function LessonModal({
       setSaving(false);
     }
   };
+
+  // Get current question to simplify template
+  const currentQuestion = questions[activeQuestionIndex];
 
   return (
     <Modal show={show} onHide={onHide} size="lg" backdrop="static">
@@ -616,7 +761,7 @@ function LessonModal({
                             className="position-relative"
                           >
                             Question {index + 1}
-                            {index > 0 && (
+                            {questions.length > 1 && (
                               <Button
                                 variant="danger"
                                 size="sm"
@@ -635,7 +780,7 @@ function LessonModal({
                       </div>
 
                       {/* Current question editor */}
-                      {questions.length > activeQuestionIndex && (
+                      {currentQuestion && (
                         <Card className="mb-3">
                           <Card.Body>
                             <Form.Group className="mb-3">
@@ -643,9 +788,7 @@ function LessonModal({
                               <Form.Control
                                 as="textarea"
                                 rows={2}
-                                value={
-                                  questions[activeQuestionIndex].questionText
-                                }
+                                value={currentQuestion.questionText}
                                 onChange={handleQuestionTextChange}
                                 placeholder="Enter your question here"
                               />
@@ -654,9 +797,7 @@ function LessonModal({
                             <Form.Group className="mb-3">
                               <Form.Label>Question Type</Form.Label>
                               <Form.Select
-                                value={
-                                  questions[activeQuestionIndex].questionType
-                                }
+                                value={currentQuestion.questionType}
                                 onChange={handleQuestionTypeChange}
                               >
                                 <option value="SingleChoice">
@@ -667,8 +808,7 @@ function LessonModal({
                                 </option>
                               </Form.Select>
                               <Form.Text className="text-muted">
-                                {questions[activeQuestionIndex].questionType ===
-                                "SingleChoice"
+                                {currentQuestion.questionType === "SingleChoice"
                                   ? "Students can select only one answer."
                                   : "Students can select multiple answers."}
                               </Form.Text>
@@ -684,65 +824,78 @@ function LessonModal({
                                   size="sm"
                                   onClick={addOptionToQuestion}
                                   disabled={
-                                    questions[activeQuestionIndex].options
-                                      .length >= 5
+                                    savingOption ||
+                                    currentQuestion.options.length >= 5
                                   }
                                   className="d-flex align-items-center gap-1"
                                 >
-                                  <FaPlus size={12} /> Add Option
+                                  {savingOption ? (
+                                    <Spinner
+                                      size="sm"
+                                      animation="border"
+                                      className="me-1"
+                                    />
+                                  ) : (
+                                    <FaPlus size={12} />
+                                  )}
+                                  Add Option
                                 </Button>
                               </div>
 
-                              {questions[activeQuestionIndex].options.map(
-                                (option, index) => (
-                                  <Row
-                                    key={index}
-                                    className="mb-2 align-items-center"
-                                  >
-                                    <Col xs={8}>
-                                      <Form.Control
-                                        placeholder={`Option ${index + 1}`}
-                                        value={option.optionText}
-                                        onChange={(e) =>
-                                          handleOptionTextChange(
-                                            index,
-                                            e.target.value,
-                                          )
-                                        }
-                                      />
-                                    </Col>
-                                    <Col xs={4} className="d-flex gap-2">
+                              {currentQuestion.options.map((option, index) => (
+                                <Row
+                                  key={index}
+                                  className="mb-2 align-items-center"
+                                >
+                                  <Col xs={8}>
+                                    <Form.Control
+                                      placeholder={`Option ${index + 1}`}
+                                      value={option.optionText}
+                                      onChange={(e) =>
+                                        handleOptionTextChange(
+                                          index,
+                                          e.target.value,
+                                        )
+                                      }
+                                    />
+                                  </Col>
+                                  <Col xs={4} className="d-flex gap-2">
+                                    <Button
+                                      variant={
+                                        option.isCorrect
+                                          ? "success"
+                                          : "outline-success"
+                                      }
+                                      onClick={() => markOptionAsCorrect(index)}
+                                      className="flex-grow-1 d-flex align-items-center justify-content-center gap-1"
+                                    >
+                                      {option.isCorrect && <FaCheck />}
+                                      {option.isCorrect
+                                        ? "Correct"
+                                        : "Mark Correct"}
+                                    </Button>
+
+                                    {currentQuestion.options.length > 2 && (
                                       <Button
-                                        variant={
-                                          option.isCorrect
-                                            ? "success"
-                                            : "outline-success"
-                                        }
+                                        variant="outline-danger"
                                         onClick={() =>
-                                          markOptionAsCorrect(index)
+                                          removeOptionFromQuestion(index)
                                         }
-                                        className="flex-grow-1 d-flex align-items-center justify-content-center gap-1"
+                                        disabled={deletingOption}
                                       >
-                                        {option.isCorrect && <FaCheck />}
-                                        {option.isCorrect
-                                          ? "Correct"
-                                          : "Mark Correct"}
-                                      </Button>
-                                      {questions[activeQuestionIndex].options
-                                        .length > 2 && (
-                                        <Button
-                                          variant="outline-danger"
-                                          onClick={() =>
-                                            removeOptionFromQuestion(index)
-                                          }
-                                        >
+                                        {deletingOption ? (
+                                          <Spinner
+                                            size="sm"
+                                            animation="border"
+                                          />
+                                        ) : (
                                           <FaTrash />
-                                        </Button>
-                                      )}
-                                    </Col>
-                                  </Row>
-                                ),
-                              )}
+                                        )}
+                                      </Button>
+                                    )}
+                                  </Col>
+                                </Row>
+                              ))}
                             </div>
                           </Card.Body>
                         </Card>

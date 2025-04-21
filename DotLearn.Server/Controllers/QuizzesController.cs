@@ -344,6 +344,139 @@ namespace DotLearn.Server.Controllers
             };
         }
 
+        // POST: api/quizzes/questions/{questionId}/options
+        [HttpPost("questions/{questionId}/options")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<ActionResult<QuizOptionDto>> AddOptionToQuestion(int questionId, [FromBody] QuizOptionDto optionDto)
+        {
+            var question = await _context.QuizQuestions
+                .Include(q => q.Lesson)
+                    .ThenInclude(l => l.Module)
+                        .ThenInclude(m => m.Course)
+                .FirstOrDefaultAsync(q => q.Id == questionId);
+
+            if (question == null)
+            {
+                return NotFound("Question not found");
+            }
+
+            // Verify user has permission
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isInstructor = question.Lesson.Module.Course.InstructorId == userId;
+            bool isAdmin = userRole == "Admin";
+
+            if (!isInstructor && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            // Create the new option
+            var option = new QuizOption
+            {
+                QuestionId = questionId,
+                OptionText = optionDto.OptionText,
+                IsCorrect = false // Default to false, will be set separately if needed
+            };
+
+            _context.QuizOptions.Add(option);
+            await _context.SaveChangesAsync();
+
+            return new QuizOptionDto
+            {
+                Id = option.Id,
+                OptionText = option.OptionText,
+                IsCorrect = false
+            };
+        }
+
+        // PUT: api/quizzes/options/{id}
+        [HttpPut("options/{id}")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> UpdateOption(int id, [FromBody] QuizOptionDto optionDto)
+        {
+            var option = await _context.QuizOptions
+                .Include(o => o.Question)
+                    .ThenInclude(q => q.Lesson)
+                        .ThenInclude(l => l.Module)
+                            .ThenInclude(m => m.Course)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (option == null)
+            {
+                return NotFound("Option not found");
+            }
+
+            // Verify user has permission
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isInstructor = option.Question.Lesson.Module.Course.InstructorId == userId;
+            bool isAdmin = userRole == "Admin";
+
+            if (!isInstructor && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            // Update option text
+            option.OptionText = optionDto.OptionText;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // DELETE: api/quizzes/options/{id}
+        [HttpDelete("options/{id}")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> DeleteOption(int id)
+        {
+            var option = await _context.QuizOptions
+                .Include(o => o.Question)
+                    .ThenInclude(q => q.Lesson)
+                        .ThenInclude(l => l.Module)
+                            .ThenInclude(m => m.Course)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (option == null)
+            {
+                return NotFound("Option not found");
+            }
+
+            // Verify user has permission
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+            bool isInstructor = option.Question.Lesson.Module.Course.InstructorId == userId;
+            bool isAdmin = userRole == "Admin";
+
+            if (!isInstructor && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            // Check if this is the last correct option for the question
+            bool isLastCorrectOption = option.IsCorrect &&
+                                      await _context.QuizOptions
+                                      .CountAsync(o => o.QuestionId == option.QuestionId && o.IsCorrect) == 1;
+
+            // Ensure there will be at least 2 options left after deletion
+            int optionCount = await _context.QuizOptions.CountAsync(o => o.QuestionId == option.QuestionId);
+            if (optionCount <= 2)
+            {
+                return BadRequest("Cannot delete option: Questions must have at least 2 options");
+            }
+
+            // If this is the last correct option, don't allow deletion
+            if (isLastCorrectOption)
+            {
+                return BadRequest("Cannot delete the only correct option. Mark another option as correct first.");
+            }
+
+            _context.QuizOptions.Remove(option);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         // PUT: api/quizzes/options/5/correct
         [HttpPut("options/{id}/correct")]
         [Authorize(Roles = "Instructor,Admin")]
