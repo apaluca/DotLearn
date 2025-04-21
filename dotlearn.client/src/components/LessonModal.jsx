@@ -25,6 +25,7 @@ import {
   FaPlus,
   FaTrash,
   FaCheck,
+  FaInfoCircle,
 } from "react-icons/fa";
 
 function LessonModal({
@@ -51,6 +52,7 @@ function LessonModal({
 
   // Other state
   const [activeTab, setActiveTab] = useState("edit");
+  const [quizActiveTab, setQuizActiveTab] = useState("questions");
   const [previewContent, setPreviewContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -129,9 +131,8 @@ function LessonModal({
       setFormData((prev) => ({
         ...prev,
         type: newType,
-        content: newType === "Quiz" ? "" : "",
       }));
-      setPreviewContent("");
+      setPreviewContent(formData.content);
       setVideoPreviewUrl("");
       setQuestions([]);
       setOriginalQuestions([]);
@@ -726,199 +727,245 @@ function LessonModal({
 
           {formData.type === "Quiz" && (
             <div className="mb-3">
-              {loadingQuiz ? (
-                <div className="text-center my-4">
-                  <Spinner animation="border" />
-                  <p className="mt-2">Loading quiz questions...</p>
-                </div>
-              ) : (
-                <div>
-                  {/* Question selector and add button */}
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h4>Quiz Questions</h4>
-                    <Button
-                      variant="primary"
-                      onClick={addNewQuestion}
-                      className="d-flex align-items-center gap-2"
-                    >
-                      <FaPlus /> Add Question
-                    </Button>
-                  </div>
+              <Tabs
+                activeKey={quizActiveTab}
+                onSelect={(k) => setQuizActiveTab(k)}
+                className="mb-3"
+              >
+                <Tab
+                  eventKey="instructions"
+                  title={
+                    <span>
+                      <FaInfoCircle className="me-2" />
+                      Quiz Instructions
+                    </span>
+                  }
+                >
+                  <Alert variant="info" className="mb-3">
+                    <FaInfoCircle className="me-2" />
+                    Add instructions that will be displayed to students before
+                    they start the quiz.
+                  </Alert>
 
-                  {/* Question tabs */}
-                  {questions.length > 0 ? (
-                    <div className="mb-4">
-                      <div className="d-flex mb-3 gap-2 flex-wrap">
-                        {questions.map((q, index) => (
-                          <Button
-                            key={index}
-                            variant={
-                              activeQuestionIndex === index
-                                ? "primary"
-                                : "outline-secondary"
-                            }
-                            onClick={() => setActiveQuestionIndex(index)}
-                            className="position-relative"
-                          >
-                            Question {index + 1}
-                            {questions.length > 1 && (
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                className="position-absolute top-0 end-0 translate-middle-y"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeQuestion(index);
-                                }}
-                                style={{ padding: "0.1rem 0.3rem" }}
-                              >
-                                <FaTimes size={10} />
-                              </Button>
-                            )}
-                          </Button>
-                        ))}
-                      </div>
-
-                      {/* Current question editor */}
-                      {currentQuestion && (
-                        <Card className="mb-3">
-                          <Card.Body>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Question Text</Form.Label>
-                              <Form.Control
-                                as="textarea"
-                                rows={2}
-                                value={currentQuestion.questionText}
-                                onChange={handleQuestionTextChange}
-                                placeholder="Enter your question here"
-                              />
-                            </Form.Group>
-
-                            <Form.Group className="mb-3">
-                              <Form.Label>Question Type</Form.Label>
-                              <Form.Select
-                                value={currentQuestion.questionType}
-                                onChange={handleQuestionTypeChange}
-                              >
-                                <option value="SingleChoice">
-                                  Single Choice (Radio Buttons)
-                                </option>
-                                <option value="MultipleChoice">
-                                  Multiple Choice (Checkboxes)
-                                </option>
-                              </Form.Select>
-                              <Form.Text className="text-muted">
-                                {currentQuestion.questionType === "SingleChoice"
-                                  ? "Students can select only one answer."
-                                  : "Students can select multiple answers."}
-                              </Form.Text>
-                            </Form.Group>
-
-                            <div className="mb-3">
-                              <div className="d-flex justify-content-between align-items-center mb-2">
-                                <Form.Label className="mb-0">
-                                  Options
-                                </Form.Label>
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={addOptionToQuestion}
-                                  disabled={
-                                    savingOption ||
-                                    currentQuestion.options.length >= 5
-                                  }
-                                  className="d-flex align-items-center gap-1"
-                                >
-                                  {savingOption ? (
-                                    <Spinner
-                                      size="sm"
-                                      animation="border"
-                                      className="me-1"
-                                    />
-                                  ) : (
-                                    <FaPlus size={12} />
-                                  )}
-                                  Add Option
-                                </Button>
-                              </div>
-
-                              {currentQuestion.options.map((option, index) => (
-                                <Row
-                                  key={index}
-                                  className="mb-2 align-items-center"
-                                >
-                                  <Col xs={8}>
-                                    <Form.Control
-                                      placeholder={`Option ${index + 1}`}
-                                      value={option.optionText}
-                                      onChange={(e) =>
-                                        handleOptionTextChange(
-                                          index,
-                                          e.target.value,
-                                        )
-                                      }
-                                    />
-                                  </Col>
-                                  <Col xs={4} className="d-flex gap-2">
-                                    <Button
-                                      variant={
-                                        option.isCorrect
-                                          ? "success"
-                                          : "outline-success"
-                                      }
-                                      onClick={() => markOptionAsCorrect(index)}
-                                      className="flex-grow-1 d-flex align-items-center justify-content-center gap-1"
-                                    >
-                                      {option.isCorrect && <FaCheck />}
-                                      {option.isCorrect
-                                        ? "Correct"
-                                        : "Mark Correct"}
-                                    </Button>
-
-                                    {currentQuestion.options.length > 2 && (
-                                      <Button
-                                        variant="outline-danger"
-                                        onClick={() =>
-                                          removeOptionFromQuestion(index)
-                                        }
-                                        disabled={deletingOption}
-                                      >
-                                        {deletingOption ? (
-                                          <Spinner
-                                            size="sm"
-                                            animation="border"
-                                          />
-                                        ) : (
-                                          <FaTrash />
-                                        )}
-                                      </Button>
-                                    )}
-                                  </Col>
-                                </Row>
-                              ))}
-                            </div>
-                          </Card.Body>
-                        </Card>
-                      )}
+                  <RichTextEditor
+                    initialValue={formData.content}
+                    onChange={handleContentChange}
+                    placeholder="Enter quiz instructions here..."
+                    hideSubmitButton={true}
+                  />
+                </Tab>
+                <Tab
+                  eventKey="questions"
+                  title={
+                    <span>
+                      <FaQuestionCircle className="me-2" />
+                      Quiz Questions
+                    </span>
+                  }
+                >
+                  {loadingQuiz ? (
+                    <div className="text-center my-4">
+                      <Spinner animation="border" />
+                      <p className="mt-2">Loading quiz questions...</p>
                     </div>
                   ) : (
-                    <div className="text-center border rounded p-4 mb-4">
-                      <FaQuestionCircle
-                        size={48}
-                        className="text-primary mb-3"
-                      />
-                      <p className="mb-3">No questions have been added yet.</p>
-                      <Button
-                        variant="primary"
-                        onClick={addNewQuestion}
-                        className="d-flex align-items-center gap-2 mx-auto"
-                      >
-                        <FaPlus /> Add Your First Question
-                      </Button>
+                    <div>
+                      {/* Question selector and add button */}
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h4>Quiz Questions</h4>
+                        <Button
+                          variant="primary"
+                          onClick={addNewQuestion}
+                          className="d-flex align-items-center gap-2"
+                        >
+                          <FaPlus /> Add Question
+                        </Button>
+                      </div>
+
+                      {/* Question tabs */}
+                      {questions.length > 0 ? (
+                        <div className="mb-4">
+                          <div className="d-flex mb-3 gap-2 flex-wrap">
+                            {questions.map((q, index) => (
+                              <Button
+                                key={index}
+                                variant={
+                                  activeQuestionIndex === index
+                                    ? "primary"
+                                    : "outline-secondary"
+                                }
+                                onClick={() => setActiveQuestionIndex(index)}
+                                className="position-relative"
+                              >
+                                Question {index + 1}
+                                {questions.length > 1 && (
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    className="position-absolute top-0 end-0 translate-middle-y"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeQuestion(index);
+                                    }}
+                                    style={{ padding: "0.1rem 0.3rem" }}
+                                  >
+                                    <FaTimes size={10} />
+                                  </Button>
+                                )}
+                              </Button>
+                            ))}
+                          </div>
+
+                          {/* Current question editor */}
+                          {currentQuestion && (
+                            <Card className="mb-3">
+                              <Card.Body>
+                                <Form.Group className="mb-3">
+                                  <Form.Label>Question Text</Form.Label>
+                                  <Form.Control
+                                    as="textarea"
+                                    rows={2}
+                                    value={currentQuestion.questionText}
+                                    onChange={handleQuestionTextChange}
+                                    placeholder="Enter your question here"
+                                  />
+                                </Form.Group>
+
+                                <Form.Group className="mb-3">
+                                  <Form.Label>Question Type</Form.Label>
+                                  <Form.Select
+                                    value={currentQuestion.questionType}
+                                    onChange={handleQuestionTypeChange}
+                                  >
+                                    <option value="SingleChoice">
+                                      Single Choice (Radio Buttons)
+                                    </option>
+                                    <option value="MultipleChoice">
+                                      Multiple Choice (Checkboxes)
+                                    </option>
+                                  </Form.Select>
+                                  <Form.Text className="text-muted">
+                                    {currentQuestion.questionType ===
+                                    "SingleChoice"
+                                      ? "Students can select only one answer."
+                                      : "Students can select multiple answers."}
+                                  </Form.Text>
+                                </Form.Group>
+
+                                <div className="mb-3">
+                                  <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <Form.Label className="mb-0">
+                                      Options
+                                    </Form.Label>
+                                    <Button
+                                      variant="outline-primary"
+                                      size="sm"
+                                      onClick={addOptionToQuestion}
+                                      disabled={
+                                        savingOption ||
+                                        currentQuestion.options.length >= 5
+                                      }
+                                      className="d-flex align-items-center gap-1"
+                                    >
+                                      {savingOption ? (
+                                        <Spinner
+                                          size="sm"
+                                          animation="border"
+                                          className="me-1"
+                                        />
+                                      ) : (
+                                        <FaPlus size={12} />
+                                      )}
+                                      Add Option
+                                    </Button>
+                                  </div>
+
+                                  {currentQuestion.options.map(
+                                    (option, index) => (
+                                      <Row
+                                        key={index}
+                                        className="mb-2 align-items-center"
+                                      >
+                                        <Col xs={8}>
+                                          <Form.Control
+                                            placeholder={`Option ${index + 1}`}
+                                            value={option.optionText}
+                                            onChange={(e) =>
+                                              handleOptionTextChange(
+                                                index,
+                                                e.target.value,
+                                              )
+                                            }
+                                          />
+                                        </Col>
+                                        <Col xs={4} className="d-flex gap-2">
+                                          <Button
+                                            variant={
+                                              option.isCorrect
+                                                ? "success"
+                                                : "outline-success"
+                                            }
+                                            onClick={() =>
+                                              markOptionAsCorrect(index)
+                                            }
+                                            className="flex-grow-1 d-flex align-items-center justify-content-center gap-1"
+                                          >
+                                            {option.isCorrect && <FaCheck />}
+                                            {option.isCorrect
+                                              ? "Correct"
+                                              : "Mark Correct"}
+                                          </Button>
+
+                                          {currentQuestion.options.length >
+                                            2 && (
+                                            <Button
+                                              variant="outline-danger"
+                                              onClick={() =>
+                                                removeOptionFromQuestion(index)
+                                              }
+                                              disabled={deletingOption}
+                                            >
+                                              {deletingOption ? (
+                                                <Spinner
+                                                  size="sm"
+                                                  animation="border"
+                                                />
+                                              ) : (
+                                                <FaTrash />
+                                              )}
+                                            </Button>
+                                          )}
+                                        </Col>
+                                      </Row>
+                                    ),
+                                  )}
+                                </div>
+                              </Card.Body>
+                            </Card>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center border rounded p-4 mb-4">
+                          <FaQuestionCircle
+                            size={48}
+                            className="text-primary mb-3"
+                          />
+                          <p className="mb-3">
+                            No questions have been added yet.
+                          </p>
+                          <Button
+                            variant="primary"
+                            onClick={addNewQuestion}
+                            className="d-flex align-items-center gap-2 mx-auto"
+                          >
+                            <FaPlus /> Add Your First Question
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
+                </Tab>
+              </Tabs>
             </div>
           )}
         </Modal.Body>

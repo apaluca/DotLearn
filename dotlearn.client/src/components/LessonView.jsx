@@ -198,6 +198,17 @@ function LessonView({
           <h3 className="h5 mb-0">Quiz Preview</h3>
         </Card.Header>
         <Card.Body>
+          {content.content && (
+            <div className="mb-4">
+              <h4>Quiz Instructions</h4>
+              <div
+                className="lesson-content mb-4"
+                dangerouslySetInnerHTML={{ __html: content.content }}
+              />
+              <hr />
+            </div>
+          )}
+
           {quizData ? (
             <div>
               <p className="mb-4">
@@ -286,7 +297,11 @@ function LessonView({
         {/* Display content based on lesson type */}
         {lesson.type === "Quiz" ? (
           // Only show Quiz component for students
-          <Quiz lessonId={lesson.id} onQuizComplete={handleQuizComplete} />
+          <Quiz
+            lessonId={lesson.id}
+            onQuizComplete={handleQuizComplete}
+            introContent={content.content}
+          />
         ) : lesson.type === "Video" ? (
           <div className="mb-4">
             <div className="ratio ratio-16x9">

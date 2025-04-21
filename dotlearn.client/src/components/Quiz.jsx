@@ -15,9 +15,11 @@ import {
   FaRedo,
   FaCheckSquare,
   FaDotCircle,
+  FaArrowRight,
+  FaInfoCircle,
 } from "react-icons/fa";
 
-function Quiz({ lessonId, onQuizComplete }) {
+function Quiz({ lessonId, onQuizComplete, introContent }) {
   const [quiz, setQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState({});
@@ -26,6 +28,7 @@ function Quiz({ lessonId, onQuizComplete }) {
   const [error, setError] = useState("");
   const [quizResult, setQuizResult] = useState(null);
   const [showResults, setShowResults] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -147,6 +150,11 @@ function Quiz({ lessonId, onQuizComplete }) {
     return selections.includes(optionId);
   };
 
+  // Handler for starting the quiz after reading instructions
+  const handleStartQuiz = () => {
+    setShowInstructions(false);
+  };
+
   if (loading) {
     return (
       <div className="text-center my-4">
@@ -165,6 +173,45 @@ function Quiz({ lessonId, onQuizComplete }) {
   if (!quiz || quiz.questions.length === 0) {
     return (
       <Alert variant="warning">This quiz doesn't have any questions yet.</Alert>
+    );
+  }
+
+  // Show instructions screen if we're still in that mode
+  if (showInstructions && introContent) {
+    return (
+      <Card className="shadow-sm">
+        <Card.Header className="bg-light">
+          <h3 className="h5 mb-0 d-flex align-items-center">
+            <FaInfoCircle className="me-2" /> Quiz Instructions
+          </h3>
+        </Card.Header>
+        <Card.Body>
+          <div className="lesson-content mb-4">
+            <div dangerouslySetInnerHTML={{ __html: introContent }} />
+          </div>
+
+          <Alert variant="info" className="d-flex align-items-center">
+            <FaInfoCircle className="me-2" size={20} />
+            <div>
+              <strong>Quiz Information:</strong>{" "}
+              <span className="ms-1">
+                This quiz has {quiz.questions.length} question(s).
+              </span>
+            </div>
+          </Alert>
+
+          <div className="d-flex justify-content-end mt-4">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleStartQuiz}
+              className="d-flex align-items-center gap-2"
+            >
+              Begin Quiz <FaArrowRight />
+            </Button>
+          </div>
+        </Card.Body>
+      </Card>
     );
   }
 

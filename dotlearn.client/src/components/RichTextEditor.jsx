@@ -116,18 +116,6 @@ function RichTextEditor({
           />
         </Form.Group>
       </Card.Body>
-      {hideSubmitButton && isDirty && (
-        <Card.Footer>
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="d-flex align-items-center gap-2"
-          >
-            <FaSave /> {isSaving ? "Saving..." : "Save Changes"}
-          </Button>
-        </Card.Footer>
-      )}
     </Card>
   );
 }

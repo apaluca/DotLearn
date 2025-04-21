@@ -182,30 +182,30 @@ function CourseDetail() {
     }
   };
 
-const handleLessonComplete = async (lessonId, isCompleted = true) => {
-  // Update local state to reflect completion or uncompletion
-  setModules((prevModules) =>
-    prevModules.map((m) => {
-      if (m.id === activeModule.id) {
-        return {
-          ...m,
-          lessons: m.lessons.map((l) =>
-            l.id === lessonId ? { ...l, isCompleted } : l,
-          ),
-        };
-      }
-      return m;
-    }),
-  );
+  const handleLessonComplete = async (lessonId, isCompleted = true) => {
+    // Update local state to reflect completion or uncompletion
+    setModules((prevModules) =>
+      prevModules.map((m) => {
+        if (m.id === activeModule.id) {
+          return {
+            ...m,
+            lessons: m.lessons.map((l) =>
+              l.id === lessonId ? { ...l, isCompleted } : l,
+            ),
+          };
+        }
+        return m;
+      }),
+    );
 
-  // Refresh progress data
-  try {
-    const progressResponse = await axios.get(`/api/progress/course/${id}`);
-    setCourseProgress(progressResponse.data);
-  } catch (err) {
-    console.error("Error refreshing course progress:", err);
-  }
-};
+    // Refresh progress data
+    try {
+      const progressResponse = await axios.get(`/api/progress/course/${id}`);
+      setCourseProgress(progressResponse.data);
+    } catch (err) {
+      console.error("Error refreshing course progress:", err);
+    }
+  };
 
   const getNextLesson = () => {
     if (!activeLesson || !activeModule) return null;
