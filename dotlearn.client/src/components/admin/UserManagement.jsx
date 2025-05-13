@@ -9,6 +9,8 @@ import {
   Spinner,
   Badge,
   InputGroup,
+  Row,
+  Col,
 } from "react-bootstrap";
 import axios from "axios";
 import {
@@ -21,6 +23,7 @@ import {
   FaSortAlphaDown,
   FaSortAlphaUp,
 } from "react-icons/fa";
+import { useAdmin } from "../../context/AdminContext";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -51,10 +54,13 @@ function UserManagement() {
     role: "Student",
   });
 
+  // Admin context
+  const { refreshCounter, triggerRefresh } = useAdmin();
+
   // Fetch users
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [refreshCounter]);
 
   const fetchUsers = async () => {
     try {
@@ -234,6 +240,9 @@ function UserManagement() {
       // Reset form and close modal
       resetForm();
       setShowEditModal(false);
+
+      // Trigger refresh
+      triggerRefresh();
     } catch (err) {
       console.error("Error updating user:", err);
       setError(err.response?.data?.message || "Failed to update user");

@@ -242,5 +242,80 @@ namespace DotLearn.Server.Controllers
 
             return NoContent();
         }
+
+        // POST: api/enrollments/admin
+        [HttpPost("admin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<EnrollmentDto>> AdminEnrollStudent([FromBody] AdminEnrollDto enrollDto)
+        {
+            // Check if the course exists
+            var course = await _context.Courses.FindAsync(enrollDto.CourseId);
+            if (course == null)
+            {
+                return NotFound(new { message = "Course not found" });
+            }
+
+            // Check if the user exists
+            var user = await _context.Users.FindAsync(enrollDto.UserId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // Check if already enrolled
+            var existingEnrollment = await _context.Enrollments
+                .FirstOrDefaultAsync(e => e.UserId == enrollDto.UserId && e.CourseId == enrollDto.CourseId);
+
+            if (existingEnrollment != null)
+            {
+                return BadRequest(new { message = "Student is already enrolled in this course" });
+            }
+
+            var enrollment = new Enrollment
+            {
+                UserId = enrollDto.UserId,
+                CourseId = enrollDto.CourseId,
+                EnrollmentDate = DateTime.Now,
+                Status = EnrollmentStatus.Active
+            };
+
+            _context.Enrollments.Add(enrollment);
+            await _context.SaveChangesAsync();
+
+            var enrollmentDto = new EnrollmentDto
+            {
+                Id = enrollment.Id,
+                UserId = enrollment.UserId,
+                UserName = $"{user.FirstName} {user.LastName}",
+                CourseId = enrollment.CourseId,
+                CourseTitle = course.Title,
+                InstructorName = (await _context.Users.FindAsync(course.InstructorId))?.FirstName + " " + (await _context.Users.FindAsync(course.InstructorId))?.LastName,
+                EnrollmentDate = enrollment.EnrollmentDate,
+                Status = enrollment.Status.ToString(),
+                CompletionDate = enrollment.CompletionDate
+            };
+
+            return CreatedAtAction(nameof(GetEnrollments), null, enrollmentDto);
+        }
+
+        // DELETE: api/enrollments/admin
+        [HttpDelete("admin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminUnenrollStudent([FromBody] AdminEnrollDto unenrollDto)
+        {
+            // Find the enrollment
+            var enrollment = await _context.Enrollments
+                .FirstOrDefaultAsync(e => e.UserId == unenrollDto.UserId && e.CourseId == unenrollDto.CourseId);
+
+            if (enrollment == null)
+            {
+                return NotFound(new { message = "Enrollment not found" });
+            }
+
+            _context.Enrollments.Remove(enrollment);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 }
