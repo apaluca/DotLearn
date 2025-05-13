@@ -1,9 +1,8 @@
-﻿using DotLearn.Server.Data;
+﻿using DotLearn.Server.Common;
 using DotLearn.Server.DTOs.Modules;
-using DotLearn.Server.Models;
+using DotLearn.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace DotLearn.Server.Controllers
@@ -13,292 +12,160 @@ namespace DotLearn.Server.Controllers
     [Authorize(Roles = "Instructor,Admin")]
     public class ModulesController : ControllerBase
     {
-        private readonly LmsDbContext _context;
+        private readonly IModuleService _moduleService;
 
-        public ModulesController(LmsDbContext context)
+        public ModulesController(IModuleService moduleService)
         {
-            _context = context;
+            _moduleService = moduleService;
         }
 
         // GET: api/modules/course/5
         [HttpGet("course/{courseId}")]
         public async Task<ActionResult<IEnumerable<ModuleDto>>> GetModulesByCourse(int courseId)
         {
-            // Check if course exists
-            var course = await _context.Courses.FindAsync(courseId);
-            if (course == null)
+            try
             {
-                return NotFound("Course not found");
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                var modules = await _moduleService.GetModulesByCourseIdAsync(courseId, userId, userRole);
+                return Ok(modules);
             }
-
-            // Check if user has access to this course
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            if (course.InstructorId != userId && userRole != "Admin")
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
-
-            var modules = await _context.Modules
-                .Where(m => m.CourseId == courseId)
-                .OrderBy(m => m.OrderIndex)
-                .Select(m => new ModuleDto
-                {
-                    Id = m.Id,
-                    Title = m.Title,
-                    CourseId = m.CourseId,
-                    OrderIndex = m.OrderIndex,
-                    LessonCount = m.Lessons.Count
-                })
-                .ToListAsync();
-
-            return modules;
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving modules", error = ex.Message });
+            }
         }
 
         // GET: api/modules/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ModuleDetailDto>> GetModule(int id)
         {
-            var module = await _context.Modules
-                .Include(m => m.Course)
-                .Include(m => m.Lessons.OrderBy(l => l.OrderIndex))
-                .FirstOrDefaultAsync(m => m.Id == id);
-
-            if (module == null)
+            try
             {
-                return NotFound();
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                var module = await _moduleService.GetModuleByIdAsync(id, userId, userRole);
+                return Ok(module);
             }
-
-            // Check if user has access to this module's course
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            if (module.Course.InstructorId != userId && userRole != "Admin")
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
-
-            var moduleDetail = new ModuleDetailDto
+            catch (Exception ex)
             {
-                Id = module.Id,
-                Title = module.Title,
-                CourseId = module.CourseId,
-                OrderIndex = module.OrderIndex,
-                Lessons = module.Lessons.Select(l => new LessonDto
-                {
-                    Id = l.Id,
-                    Title = l.Title,
-                    OrderIndex = l.OrderIndex,
-                    Type = l.Type.ToString()
-                }).ToList()
-            };
-
-            return moduleDetail;
+                return StatusCode(500, new { message = "An error occurred while retrieving the module", error = ex.Message });
+            }
         }
 
         // POST: api/modules
         [HttpPost]
         public async Task<ActionResult<ModuleDto>> CreateModule(CreateModuleDto moduleDto)
         {
-            // Check if course exists
-            var course = await _context.Courses.FindAsync(moduleDto.CourseId);
-            if (course == null)
+            try
             {
-                return NotFound("Course not found");
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                var module = await _moduleService.CreateModuleAsync(moduleDto, userId, userRole);
+                return CreatedAtAction(nameof(GetModule), new { id = module.Id }, module);
             }
-
-            // Check if user has access to this course
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            if (course.InstructorId != userId && userRole != "Admin")
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
-
-            // Determine the next order index
-            int nextOrderIndex = 1;
-            var lastModule = await _context.Modules
-                .Where(m => m.CourseId == moduleDto.CourseId)
-                .OrderByDescending(m => m.OrderIndex)
-                .FirstOrDefaultAsync();
-
-            if (lastModule != null)
+            catch (Exception ex)
             {
-                nextOrderIndex = lastModule.OrderIndex + 1;
+                return StatusCode(500, new { message = "An error occurred while creating the module", error = ex.Message });
             }
-
-            var module = new Module
-            {
-                Title = moduleDto.Title,
-                CourseId = moduleDto.CourseId,
-                OrderIndex = nextOrderIndex
-            };
-
-            _context.Modules.Add(module);
-            await _context.SaveChangesAsync();
-
-            // Update any completed enrollments to active
-            var completedEnrollments = await _context.Enrollments
-                .Where(e => e.CourseId == moduleDto.CourseId && e.Status == EnrollmentStatus.Completed)
-                .ToListAsync();
-
-            foreach (var enrollment in completedEnrollments)
-            {
-                enrollment.Status = EnrollmentStatus.Active;
-                enrollment.CompletionDate = null;
-            }
-
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetModule), new { id = module.Id }, new ModuleDto
-            {
-                Id = module.Id,
-                Title = module.Title,
-                CourseId = module.CourseId,
-                OrderIndex = module.OrderIndex,
-                LessonCount = 0
-            });
         }
 
         // PUT: api/modules/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateModule(int id, UpdateModuleDto moduleDto)
         {
-            var module = await _context.Modules
-                .Include(m => m.Course)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
-            if (module == null)
+            try
             {
-                return NotFound();
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _moduleService.UpdateModuleAsync(id, moduleDto, userId, userRole);
+                return NoContent();
             }
-
-            // Check if user has access to this module's course
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            if (module.Course.InstructorId != userId && userRole != "Admin")
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
-
-            module.Title = moduleDto.Title;
-
-            // If order index is provided and different
-            if (moduleDto.OrderIndex.HasValue && moduleDto.OrderIndex.Value != module.OrderIndex)
+            catch (Exception ex)
             {
-                // Reorder modules
-                await ReorderModules(module.CourseId, id, module.OrderIndex, moduleDto.OrderIndex.Value);
+                return StatusCode(500, new { message = "An error occurred while updating the module", error = ex.Message });
             }
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ModuleExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
         }
 
         // DELETE: api/modules/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteModule(int id)
         {
-            var module = await _context.Modules
-                .Include(m => m.Course)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
-            if (module == null)
+            try
             {
-                return NotFound();
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _moduleService.DeleteModuleAsync(id, userId, userRole);
+                return NoContent();
             }
-
-            // Check if user has access to this module's course
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            if (module.Course.InstructorId != userId && userRole != "Admin")
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
-
-            // Get current order index for reordering
-            int currentOrderIndex = module.OrderIndex;
-
-            _context.Modules.Remove(module);
-            await _context.SaveChangesAsync();
-
-            // Reorder remaining modules
-            var modulesToUpdate = await _context.Modules
-                .Where(m => m.CourseId == module.CourseId && m.OrderIndex > currentOrderIndex)
-                .ToListAsync();
-
-            foreach (var m in modulesToUpdate)
+            catch (Exception ex)
             {
-                m.OrderIndex--;
-            }
-
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool ModuleExists(int id)
-        {
-            return _context.Modules.Any(e => e.Id == id);
-        }
-
-        private async Task ReorderModules(int courseId, int moduleId, int oldIndex, int newIndex)
-        {
-            if (oldIndex == newIndex)
-                return;
-
-            var modules = await _context.Modules
-                .Where(m => m.CourseId == courseId && m.Id != moduleId)
-                .OrderBy(m => m.OrderIndex)
-                .ToListAsync();
-
-            // Insert at the new index and shift others
-            if (oldIndex < newIndex)
-            {
-                // Moving down - shift modules up
-                foreach (var m in modules)
-                {
-                    if (m.OrderIndex > oldIndex && m.OrderIndex <= newIndex)
-                    {
-                        m.OrderIndex--;
-                    }
-                }
-            }
-            else
-            {
-                // Moving up - shift modules down
-                foreach (var m in modules)
-                {
-                    if (m.OrderIndex >= newIndex && m.OrderIndex < oldIndex)
-                    {
-                        m.OrderIndex++;
-                    }
-                }
-            }
-
-            // Update the module being reordered
-            var module = await _context.Modules.FindAsync(moduleId);
-            if (module != null)
-            {
-                module.OrderIndex = newIndex;
+                return StatusCode(500, new { message = "An error occurred while deleting the module", error = ex.Message });
             }
         }
     }

@@ -1,9 +1,8 @@
-﻿using DotLearn.Server.Data;
+﻿using DotLearn.Server.Common;
 using DotLearn.Server.DTOs.Enrollments;
-using DotLearn.Server.Models;
+using DotLearn.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace DotLearn.Server.Controllers
@@ -13,208 +12,114 @@ namespace DotLearn.Server.Controllers
     [Authorize]
     public class EnrollmentsController : ControllerBase
     {
-        private readonly LmsDbContext _context;
+        private readonly IEnrollmentService _enrollmentService;
 
-        public EnrollmentsController(LmsDbContext context)
+        public EnrollmentsController(IEnrollmentService enrollmentService)
         {
-            _context = context;
+            _enrollmentService = enrollmentService;
         }
 
         // GET: api/enrollments
         [HttpGet]
         public async Task<ActionResult<IEnumerable<EnrollmentDto>>> GetEnrollments()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            // For students, return only their own enrollments
-            // For instructors, return enrollments for their courses
-            // For admins, return all enrollments
-
-            IQueryable<Enrollment> enrollmentsQuery = _context.Enrollments
-                .Include(e => e.User)
-                .Include(e => e.Course)
-                    .ThenInclude(c => c.Instructor);
-
-            if (userRole == "Student")
+            try
             {
-                enrollmentsQuery = enrollmentsQuery.Where(e => e.UserId == userId);
-            }
-            else if (userRole == "Instructor")
-            {
-                enrollmentsQuery = enrollmentsQuery.Where(e => e.Course.InstructorId == userId);
-            }
-            // For Admin, no filtering needed
-
-            var enrollments = await enrollmentsQuery
-                .Select(e => new EnrollmentDto
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
                 {
-                    Id = e.Id,
-                    UserId = e.UserId,
-                    UserName = $"{e.User.FirstName} {e.User.LastName}",
-                    CourseId = e.CourseId,
-                    CourseTitle = e.Course.Title,
-                    InstructorName = $"{e.Course.Instructor.FirstName} {e.Course.Instructor.LastName}",
-                    EnrollmentDate = e.EnrollmentDate,
-                    Status = e.Status.ToString(),
-                    CompletionDate = e.CompletionDate
-                })
-                .ToListAsync();
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
 
-            return enrollments;
+                var enrollments = await _enrollmentService.GetEnrollmentsAsync(userId, userRole);
+                return Ok(enrollments);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving enrollments", error = ex.Message });
+            }
         }
 
         // GET: api/enrollments/courses
         [HttpGet("courses")]
         public async Task<ActionResult<IEnumerable<CourseDto>>> GetEnrolledCourses()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            var enrolledCourses = await _context.Enrollments
-                .Where(e => e.UserId == userId)
-                .Include(e => e.Course)
-                    .ThenInclude(c => c.Instructor)
-                .Select(e => new CourseDto
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
                 {
-                    Id = e.Course.Id,
-                    Title = e.Course.Title,
-                    Description = e.Course.Description,
-                    InstructorId = e.Course.InstructorId,
-                    InstructorName = $"{e.Course.Instructor.FirstName} {e.Course.Instructor.LastName}",
-                    Status = e.Status.ToString(),
-                    EnrollmentDate = e.EnrollmentDate,
-                    CompletionDate = e.CompletionDate,
-                    EnrollmentId = e.Id
-                })
-                .ToListAsync();
-
-            return enrolledCourses;
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var enrolledCourses = await _enrollmentService.GetEnrolledCoursesAsync(userId);
+                return Ok(enrolledCourses);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving enrolled courses", error = ex.Message });
+            }
         }
 
         // POST: api/enrollments
         [HttpPost]
         public async Task<ActionResult<EnrollmentDto>> EnrollInCourse(EnrollCourseDto enrollDto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            // Check if the course exists
-            var course = await _context.Courses.FindAsync(enrollDto.CourseId);
-            if (course == null)
+            try
             {
-                return NotFound(new { message = "Course not found" });
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var enrollment = await _enrollmentService.EnrollInCourseAsync(enrollDto, userId);
+                return CreatedAtAction(nameof(GetEnrollments), null, enrollment);
             }
-
-            // Check if already enrolled
-            var existingEnrollment = await _context.Enrollments
-                .FirstOrDefaultAsync(e => e.UserId == userId && e.CourseId == enrollDto.CourseId);
-
-            if (existingEnrollment != null)
+            catch (NotFoundException ex)
             {
-                return BadRequest(new { message = "Already enrolled in this course" });
+                return NotFound(new { message = ex.Message });
             }
-
-            var enrollment = new Enrollment
+            catch (BadRequestException ex)
             {
-                UserId = userId,
-                CourseId = enrollDto.CourseId,
-                EnrollmentDate = DateTime.Now,
-                Status = EnrollmentStatus.Active
-            };
-
-            _context.Enrollments.Add(enrollment);
-            await _context.SaveChangesAsync();
-
-            var user = await _context.Users.FindAsync(userId);
-            var enrollmentDto = new EnrollmentDto
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
             {
-                Id = enrollment.Id,
-                UserId = enrollment.UserId,
-                UserName = $"{user.FirstName} {user.LastName}",
-                CourseId = enrollment.CourseId,
-                CourseTitle = course.Title,
-                InstructorName = (await _context.Users.FindAsync(course.InstructorId))?.FirstName + " " + (await _context.Users.FindAsync(course.InstructorId))?.LastName,
-                EnrollmentDate = enrollment.EnrollmentDate,
-                Status = enrollment.Status.ToString(),
-                CompletionDate = enrollment.CompletionDate
-            };
-
-            return CreatedAtAction(nameof(GetEnrollments), null, enrollmentDto);
+                return StatusCode(500, new { message = "An error occurred while enrolling in the course", error = ex.Message });
+            }
         }
 
         // PUT: api/enrollments/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateEnrollmentStatus(int id, UpdateEnrollmentDto updateDto)
         {
-            var enrollment = await _context.Enrollments.FindAsync(id);
-            if (enrollment == null)
+            try
             {
-                return NotFound();
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _enrollmentService.UpdateEnrollmentStatusAsync(id, updateDto, userId, userRole);
+                return NoContent();
             }
-
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            // Check if user has permission to update this enrollment
-            if (enrollment.UserId != userId && userRole != "Admin" &&
-                !(userRole == "Instructor" && await _context.Courses.AnyAsync(c => c.Id == enrollment.CourseId && c.InstructorId == userId)))
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
-
-            // Update status
-            if (Enum.TryParse<EnrollmentStatus>(updateDto.Status, out var status))
+            catch (BadRequestException ex)
             {
-                enrollment.Status = status;
-
-                // If status is completed, set completion date and mark all lessons as complete
-                if (status == EnrollmentStatus.Completed)
-                {
-                    enrollment.CompletionDate = DateTime.Now;
-
-                    // Get all lessons for this course
-                    var lessons = await _context.Lessons
-                        .Where(l => l.Module.CourseId == enrollment.CourseId)
-                        .ToListAsync();
-
-                    foreach (var lesson in lessons)
-                    {
-                        // Check if progress record exists
-                        var progress = await _context.LessonProgress
-                            .FirstOrDefaultAsync(lp => lp.UserId == enrollment.UserId && lp.LessonId == lesson.Id);
-
-                        if (progress == null)
-                        {
-                            // Create new progress record and mark as completed
-                            progress = new LessonProgress
-                            {
-                                UserId = enrollment.UserId,
-                                LessonId = lesson.Id,
-                                StartedAt = DateTime.Now,
-                                CompletedAt = DateTime.Now,
-                                IsCompleted = true
-                            };
-
-                            _context.LessonProgress.Add(progress);
-                        }
-                        else if (!progress.IsCompleted)
-                        {
-                            // Update existing progress to completed
-                            progress.CompletedAt = DateTime.Now;
-                            progress.IsCompleted = true;
-                        }
-                    }
-                }
-                else
-                {
-                    enrollment.CompletionDate = null;
-                }
-
-                await _context.SaveChangesAsync();
-                return NoContent();
+                return BadRequest(new { message = ex.Message });
             }
-            else
+            catch (Exception ex)
             {
-                return BadRequest(new { message = "Invalid status" });
+                return StatusCode(500, new { message = "An error occurred while updating the enrollment", error = ex.Message });
             }
         }
 
@@ -222,46 +127,30 @@ namespace DotLearn.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEnrollment(int id)
         {
-            var enrollment = await _context.Enrollments.FindAsync(id);
-            if (enrollment == null)
+            try
             {
-                return NotFound();
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _enrollmentService.DeleteEnrollmentAsync(id, userId, userRole);
+                return NoContent();
             }
-
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
-            // Check if user has permission to delete this enrollment
-            if (enrollment.UserId != userId && userRole != "Admin")
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
-
-            // Find all lessons for this course
-            var lessons = await _context.Lessons
-                .Where(l => l.Module.CourseId == enrollment.CourseId)
-                .Select(l => l.Id)
-                .ToListAsync();
-
-            // Delete all progress records for these lessons for this user
-            var progressRecords = await _context.LessonProgress
-                .Where(lp => lp.UserId == enrollment.UserId && lessons.Contains(lp.LessonId))
-                .ToListAsync();
-
-            _context.LessonProgress.RemoveRange(progressRecords);
-
-            // Delete quiz attempts as well if they exist
-            var quizAttempts = await _context.QuizAttempts
-                .Where(qa => qa.UserId == enrollment.UserId && lessons.Contains(qa.LessonId))
-                .ToListAsync();
-
-            _context.QuizAttempts.RemoveRange(quizAttempts);
-
-            // Delete the enrollment
-            _context.Enrollments.Remove(enrollment);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while deleting the enrollment", error = ex.Message });
+            }
         }
 
         // POST: api/enrollments/admin
@@ -269,54 +158,23 @@ namespace DotLearn.Server.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<EnrollmentDto>> AdminEnrollStudent([FromBody] AdminEnrollDto enrollDto)
         {
-            // Check if the course exists
-            var course = await _context.Courses.FindAsync(enrollDto.CourseId);
-            if (course == null)
+            try
             {
-                return NotFound(new { message = "Course not found" });
+                var enrollment = await _enrollmentService.AdminEnrollStudentAsync(enrollDto);
+                return CreatedAtAction(nameof(GetEnrollments), null, enrollment);
             }
-
-            // Check if the user exists
-            var user = await _context.Users.FindAsync(enrollDto.UserId);
-            if (user == null)
+            catch (NotFoundException ex)
             {
-                return NotFound(new { message = "User not found" });
+                return NotFound(new { message = ex.Message });
             }
-
-            // Check if already enrolled
-            var existingEnrollment = await _context.Enrollments
-                .FirstOrDefaultAsync(e => e.UserId == enrollDto.UserId && e.CourseId == enrollDto.CourseId);
-
-            if (existingEnrollment != null)
+            catch (BadRequestException ex)
             {
-                return BadRequest(new { message = "Student is already enrolled in this course" });
+                return BadRequest(new { message = ex.Message });
             }
-
-            var enrollment = new Enrollment
+            catch (Exception ex)
             {
-                UserId = enrollDto.UserId,
-                CourseId = enrollDto.CourseId,
-                EnrollmentDate = DateTime.Now,
-                Status = EnrollmentStatus.Active
-            };
-
-            _context.Enrollments.Add(enrollment);
-            await _context.SaveChangesAsync();
-
-            var enrollmentDto = new EnrollmentDto
-            {
-                Id = enrollment.Id,
-                UserId = enrollment.UserId,
-                UserName = $"{user.FirstName} {user.LastName}",
-                CourseId = enrollment.CourseId,
-                CourseTitle = course.Title,
-                InstructorName = (await _context.Users.FindAsync(course.InstructorId))?.FirstName + " " + (await _context.Users.FindAsync(course.InstructorId))?.LastName,
-                EnrollmentDate = enrollment.EnrollmentDate,
-                Status = enrollment.Status.ToString(),
-                CompletionDate = enrollment.CompletionDate
-            };
-
-            return CreatedAtAction(nameof(GetEnrollments), null, enrollmentDto);
+                return StatusCode(500, new { message = "An error occurred while enrolling the student", error = ex.Message });
+            }
         }
 
         // DELETE: api/enrollments/admin
@@ -324,40 +182,19 @@ namespace DotLearn.Server.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AdminUnenrollStudent([FromBody] AdminEnrollDto unenrollDto)
         {
-            // Find the enrollment
-            var enrollment = await _context.Enrollments
-                .FirstOrDefaultAsync(e => e.UserId == unenrollDto.UserId && e.CourseId == unenrollDto.CourseId);
-
-            if (enrollment == null)
+            try
             {
-                return NotFound(new { message = "Enrollment not found" });
+                await _enrollmentService.AdminUnenrollStudentAsync(unenrollDto);
+                return NoContent();
             }
-
-            // Find all lessons for this course
-            var lessons = await _context.Lessons
-                .Where(l => l.Module.CourseId == enrollment.CourseId)
-                .Select(l => l.Id)
-                .ToListAsync();
-
-            // Delete all progress records for these lessons for this user
-            var progressRecords = await _context.LessonProgress
-                .Where(lp => lp.UserId == enrollment.UserId && lessons.Contains(lp.LessonId))
-                .ToListAsync();
-
-            _context.LessonProgress.RemoveRange(progressRecords);
-
-            // Delete quiz attempts as well if they exist
-            var quizAttempts = await _context.QuizAttempts
-                .Where(qa => qa.UserId == enrollment.UserId && lessons.Contains(qa.LessonId))
-                .ToListAsync();
-
-            _context.QuizAttempts.RemoveRange(quizAttempts);
-
-            // Delete the enrollment
-            _context.Enrollments.Remove(enrollment);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while unenrolling the student", error = ex.Message });
+            }
         }
     }
 }

@@ -1,12 +1,10 @@
-﻿using DotLearn.Server.Data;
+﻿using DotLearn.Server.Common;
 using DotLearn.Server.DTOs.Admin;
-using DotLearn.Server.Models;
+using DotLearn.Server.DTOs.Auth;
+using DotLearn.Server.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace DotLearn.Server.Controllers
 {
@@ -15,216 +13,141 @@ namespace DotLearn.Server.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminController : ControllerBase
     {
-        private readonly LmsDbContext _context;
+        private readonly IAdminService _adminService;
 
-        public AdminController(LmsDbContext context)
+        public AdminController(IAdminService adminService)
         {
-            _context = context;
+            _adminService = adminService;
         }
 
         // GET: api/admin/users
         [HttpGet("users")]
         public async Task<ActionResult<IEnumerable<UserListDto>>> GetUsers()
         {
-            var users = await _context.Users
-                .Select(u => new UserListDto
-                {
-                    Id = u.Id,
-                    Username = u.Username,
-                    Email = u.Email,
-                    FirstName = u.FirstName,
-                    LastName = u.LastName,
-                    Role = u.Role.ToString(),
-                    CreatedAt = u.CreatedAt,
-                    CoursesEnrolled = u.Enrollments.Count,
-                    CoursesCreated = u.InstructorCourses.Count
-                })
-                .ToListAsync();
-
-            return users;
+            try
+            {
+                var users = await _adminService.GetUsersAsync();
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving users", error = ex.Message });
+            }
         }
 
         // GET: api/admin/users/5
         [HttpGet("users/{id}")]
         public async Task<ActionResult<UserListDto>> GetUser(int id)
         {
-            var user = await _context.Users
-                .Where(u => u.Id == id)
-                .Select(u => new UserListDto
-                {
-                    Id = u.Id,
-                    Username = u.Username,
-                    Email = u.Email,
-                    FirstName = u.FirstName,
-                    LastName = u.LastName,
-                    Role = u.Role.ToString(),
-                    CreatedAt = u.CreatedAt,
-                    CoursesEnrolled = u.Enrollments.Count,
-                    CoursesCreated = u.InstructorCourses.Count
-                })
-                .FirstOrDefaultAsync();
-
-            if (user == null)
+            try
             {
-                return NotFound();
+                var user = await _adminService.GetUserByIdAsync(id);
+                return Ok(user);
             }
-
-            return user;
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving the user", error = ex.Message });
+            }
         }
 
         // PUT: api/admin/users/5
         [HttpPut("users/{id}")]
         public async Task<IActionResult> UpdateUser(int id, UpdateUserDto updateUserDto)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            try
             {
-                return NotFound();
+                await _adminService.UpdateUserAsync(id, updateUserDto);
+                return NoContent();
             }
-
-            // Update user details
-            user.FirstName = updateUserDto.FirstName;
-            user.LastName = updateUserDto.LastName;
-            user.Email = updateUserDto.Email;
-
-            // Update role if valid
-            if (Enum.TryParse<UserRole>(updateUserDto.Role, out var role))
+            catch (NotFoundException ex)
             {
-                user.Role = role;
+                return NotFound(new { message = ex.Message });
             }
-            else
+            catch (BadRequestException ex)
             {
-                return BadRequest(new { message = "Invalid role" });
+                return BadRequest(new { message = ex.Message });
             }
-
-            await _context.SaveChangesAsync();
-            return NoContent();
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while updating the user", error = ex.Message });
+            }
         }
 
         // PUT: api/admin/users/5/password
         [HttpPut("users/{id}/password")]
         public async Task<IActionResult> UpdateUserPassword(int id, UpdatePasswordDto updatePasswordDto)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            try
             {
-                return NotFound();
+                await _adminService.UpdateUserPasswordAsync(id, updatePasswordDto);
+                return NoContent();
             }
-
-            // Update password
-            user.PasswordHash = HashPassword(updatePasswordDto.NewPassword);
-
-            await _context.SaveChangesAsync();
-            return NoContent();
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while updating the user's password", error = ex.Message });
+            }
         }
 
         // DELETE: api/admin/users/5
         [HttpDelete("users/{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            try
             {
-                return NotFound();
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+                await _adminService.DeleteUserAsync(id, userId);
+                return NoContent();
             }
-
-            // Get current user ID
-            var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            // Prevent deleting yourself
-            if (user.Id == currentUserId)
+            catch (NotFoundException ex)
             {
-                return BadRequest(new { message = "You cannot delete your own account" });
+                return NotFound(new { message = ex.Message });
             }
-
-            // Check if user has created courses
-            if (await _context.Courses.AnyAsync(c => c.InstructorId == id))
+            catch (BadRequestException ex)
             {
-                return BadRequest(new { message = "Cannot delete user with created courses. Please reassign or delete the courses first." });
+                return BadRequest(new { message = ex.Message });
             }
-
-            // Delete user's enrollments first to avoid foreign key constraints
-            var enrollments = await _context.Enrollments.Where(e => e.UserId == id).ToListAsync();
-            _context.Enrollments.RemoveRange(enrollments);
-
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while deleting the user", error = ex.Message });
+            }
         }
 
         // POST: api/admin/users
         [HttpPost("users")]
-        public async Task<ActionResult<UserListDto>> CreateUser(DTOs.Auth.RegisterModel registerModel)
+        public async Task<ActionResult<UserListDto>> CreateUser(RegisterModel registerModel)
         {
-            if (await _context.Users.AnyAsync(u => u.Username == registerModel.Username))
+            try
             {
-                return BadRequest(new { message = "Username already exists" });
-            }
-
-            if (await _context.Users.AnyAsync(u => u.Email == registerModel.Email))
-            {
-                return BadRequest(new { message = "Email already registered" });
-            }
-
-            // Default to Student role if not specified or invalid
-            UserRole role = UserRole.Student;
-            if (Request.Headers.ContainsKey("X-User-Role"))
-            {
-                string roleString = Request.Headers["X-User-Role"];
-                if (Enum.TryParse<UserRole>(roleString, out var parsedRole))
+                string role = string.Empty;
+                if (Request.Headers.ContainsKey("X-User-Role"))
                 {
-                    role = parsedRole;
+                    role = Request.Headers["X-User-Role"];
                 }
+
+                var user = await _adminService.CreateUserAsync(registerModel, role);
+                return Created($"api/admin/users/{user.Id}", user);
             }
-
-            var user = new User
+            catch (BadRequestException ex)
             {
-                Username = registerModel.Username,
-                Email = registerModel.Email,
-                PasswordHash = HashPassword(registerModel.Password),
-                FirstName = registerModel.FirstName,
-                LastName = registerModel.LastName,
-                Role = role,
-                CreatedAt = DateTime.Now
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return Created("", new UserListDto
-            {
-                Id = user.Id,
-                Username = user.Username,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = user.Role.ToString(),
-                CreatedAt = user.CreatedAt,
-                CoursesEnrolled = 0,
-                CoursesCreated = 0
-            });
-        }
-
-        private string HashPassword(string password)
-        {
-            // Generate a random salt
-            byte[] salt = new byte[128 / 8];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(salt);
+                return BadRequest(new { message = ex.Message });
             }
-
-            // Hash the password with the salt
-            string hashed = Convert.ToBase64String(KeyDerivation.Pbkdf2(
-                password: password,
-                salt: salt,
-                prf: KeyDerivationPrf.HMACSHA256,
-                iterationCount: 10000,
-                numBytesRequested: 256 / 8));
-
-            // Combine the salt and hash for storage
-            return $"{Convert.ToBase64String(salt)}:{hashed}";
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while creating the user", error = ex.Message });
+            }
         }
     }
 }
