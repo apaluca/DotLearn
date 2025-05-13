@@ -1,5 +1,5 @@
 ﻿using DotLearn.Server.Data.Repositories;
-using DotLearn.Server.Models;
+using DotLearn.Server.Domain.Entities;
 
 public interface IQuizRepository : IRepository<QuizQuestion>
 {

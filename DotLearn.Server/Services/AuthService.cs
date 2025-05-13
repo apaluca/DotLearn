@@ -1,7 +1,8 @@
 ﻿using DotLearn.Server.Common;
 using DotLearn.Server.Data.Repositories;
+using DotLearn.Server.Domain.Entities;
+using DotLearn.Server.Domain.Enums;
 using DotLearn.Server.DTOs.Auth;
-using DotLearn.Server.Models;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;

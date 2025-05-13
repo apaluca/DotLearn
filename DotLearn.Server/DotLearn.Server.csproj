@@ -33,7 +33,7 @@
 
   <ItemGroup>
     <Folder Include="Migrations\" />
-    <Folder Include="Domain\" />
+    <Folder Include="Models\" />
   </ItemGroup>
 
 </Project>

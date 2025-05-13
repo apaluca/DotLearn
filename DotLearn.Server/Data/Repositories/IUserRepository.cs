@@ -1,4 +1,5 @@
-﻿using DotLearn.Server.Models;
+﻿using DotLearn.Server.Domain.Entities;
+using DotLearn.Server.Domain.Enums;
 
 namespace DotLearn.Server.Data.Repositories
 {

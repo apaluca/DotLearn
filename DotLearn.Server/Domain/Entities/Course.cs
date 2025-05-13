@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace DotLearn.Server.Models
+﻿namespace DotLearn.Server.Domain.Entities
 {
     public class Course
     {

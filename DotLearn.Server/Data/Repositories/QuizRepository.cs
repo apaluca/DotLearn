@@ -1,4 +1,4 @@
-﻿using DotLearn.Server.Models;
+﻿using DotLearn.Server.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotLearn.Server.Data.Repositories

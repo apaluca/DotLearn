@@ -1,4 +1,4 @@
-﻿namespace DotLearn.Server.Models
+﻿namespace DotLearn.Server.Domain.Enums
 {
     public enum EnrollmentStatus
     {

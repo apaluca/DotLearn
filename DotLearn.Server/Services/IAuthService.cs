@@ -1,4 +1,5 @@
-﻿using DotLearn.Server.DTOs.Auth;
+﻿using DotLearn.Server.Domain.Entities;
+using DotLearn.Server.DTOs.Auth;
 
 namespace DotLearn.Server.Services
 {
@@ -6,7 +7,7 @@ namespace DotLearn.Server.Services
     {
         Task<AuthResultDto> LoginAsync(LoginModel model);
         Task<AuthResultDto> RegisterAsync(RegisterModel model);
-        string GenerateJwtToken(Models.User user);
+        string GenerateJwtToken(User user);
         string HashPassword(string password);
         bool VerifyPassword(string password, string storedHash);
     }

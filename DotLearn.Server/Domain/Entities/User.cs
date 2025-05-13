@@ -1,4 +1,6 @@
-﻿namespace DotLearn.Server.Models
+﻿using DotLearn.Server.Domain.Enums;
+
+namespace DotLearn.Server.Domain.Entities
 {
     public class User
     {

@@ -1,8 +1,9 @@
 ﻿using DotLearn.Server.Common;
 using DotLearn.Server.Data.Repositories;
+using DotLearn.Server.Domain.Entities;
+using DotLearn.Server.Domain.Enums;
 using DotLearn.Server.DTOs.Admin;
 using DotLearn.Server.DTOs.Auth;
-using DotLearn.Server.Models;
 
 namespace DotLearn.Server.Services
 {
