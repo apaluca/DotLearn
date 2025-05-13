@@ -8,19 +8,12 @@ import {
   InputGroup,
   Alert,
   Spinner,
-  Badge,
 } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import {
-  FaSearch,
-  FaTimes,
-  FaBook,
-  FaChalkboardTeacher,
-  FaUsers,
-  FaArrowRight,
-} from "react-icons/fa";
+import { FaSearch, FaTimes, FaBook } from "react-icons/fa";
+import CourseCard from "./CourseCard";
 
 function CourseList() {
   const { user } = useAuth();
@@ -79,34 +72,48 @@ function CourseList() {
     }
   }, [search, courses]);
 
-  const enrollInCourse = async (courseId) => {
-    if (!user) {
-      alert("Please log in to enroll in this course.");
-      return;
-    }
-
+  // This function will handle both enrollment and dropping
+  const handleEnrollmentUpdate = async (
+    action,
+    courseId,
+    enrollmentData = null,
+  ) => {
     try {
-      const response = await axios.post("/api/enrollments", { courseId });
+      if (action === "enroll") {
+        // Find the complete course data from our courses list
+        const courseData = courses.find((c) => c.id === courseId);
 
-      // Add the new enrollment to the enrolled courses
-      if (response.data) {
-        setEnrolledCourses((prev) => [...prev, response.data]);
-      } else {
-        // If response data structure is unclear, refresh enrollments
-        const enrollmentsResponse = await axios.get("/api/enrollments/courses");
-        setEnrolledCourses(enrollmentsResponse.data);
+        if (!courseData) {
+          console.error("Course not found in courses list");
+          return;
+        }
+
+        // Create a new enrollment object with all needed fields
+        const newEnrollment = {
+          id: courseId,
+          title: courseData.title,
+          description: courseData.description,
+          instructorId: courseData.instructorId,
+          instructorName: courseData.instructorName,
+          status: "Active",
+          enrollmentDate: new Date().toISOString(),
+          enrollmentId: enrollmentData?.id || Date.now(), // Use API ID or fallback
+        };
+
+        // Update enrolled courses immediately
+        setEnrolledCourses((prev) => [...prev, newEnrollment]);
+      } else if (action === "drop") {
+        // Remove the course from enrolled courses
+        setEnrolledCourses((prev) =>
+          prev.filter((course) => course.id !== courseId),
+        );
       }
-
-      alert("Successfully enrolled in the course!");
     } catch (err) {
-      alert(
-        err.response?.data?.message ||
-          "Failed to enroll in the course. Please try again.",
-      );
-      console.error(err);
+      console.error("Error updating enrollment state:", err);
     }
   };
 
+  // Now our isEnrolled and isCourseCompleted functions will always use the latest state
   const isEnrolled = (courseId) => {
     return enrolledCourses.some((course) => course.id === courseId);
   };
@@ -116,7 +123,12 @@ function CourseList() {
     return course && course.status === "Completed";
   };
 
-  // Don't show enroll button if user is the instructor of the course
+  const getEnrollmentId = (courseId) => {
+    const course = enrolledCourses.find((course) => course.id === courseId);
+    return course ? course.enrollmentId : null;
+  };
+
+  // Check if user is the instructor of the course
   const isInstructor = (course) => {
     return user && course.instructorId === parseInt(user.id);
   };
@@ -179,78 +191,14 @@ function CourseList() {
         <Row xs={1} md={2} lg={3} className="g-4">
           {filteredCourses.map((course) => (
             <Col key={course.id}>
-              <Card className="h-100 shadow-sm">
-                <Card.Body>
-                  <Card.Title className="mb-3">{course.title}</Card.Title>
-                  <Card.Subtitle className="mb-3 text-muted d-flex align-items-center gap-2">
-                    <FaChalkboardTeacher /> {course.instructorName}
-                  </Card.Subtitle>
-                  <Card.Text>
-                    {course.description.length > 150
-                      ? course.description.substring(0, 150) + "..."
-                      : course.description}
-                  </Card.Text>
-                  <div className="d-flex align-items-center mb-3">
-                    <FaUsers className="text-muted me-2" />
-                    <small className="text-muted">
-                      {course.enrollmentCount} student
-                      {course.enrollmentCount !== 1 ? "s" : ""} enrolled
-                    </small>
-                  </div>
-
-                  {isEnrolled(course.id) && (
-                    <Badge
-                      bg={isCourseCompleted(course.id) ? "success" : "primary"}
-                      className="mb-2"
-                    >
-                      {isCourseCompleted(course.id)
-                        ? "Completed"
-                        : "You're enrolled"}
-                    </Badge>
-                  )}
-
-                  {isInstructor(course) && (
-                    <Badge bg="info" className="mb-2">
-                      You're the instructor
-                    </Badge>
-                  )}
-                </Card.Body>
-                <Card.Footer className="bg-white">
-                  <div className="d-grid gap-2">
-                    <Button
-                      as={Link}
-                      to={`/courses/${course.id}`}
-                      variant={
-                        isEnrolled(course.id)
-                          ? isCourseCompleted(course.id)
-                            ? "outline-primary"
-                            : "success"
-                          : "primary"
-                      }
-                      className="d-flex align-items-center justify-content-center gap-2"
-                    >
-                      {isEnrolled(course.id)
-                        ? isCourseCompleted(course.id)
-                          ? "Review Course"
-                          : "Continue Learning"
-                        : "View Course"}
-                      <FaArrowRight />
-                    </Button>
-
-                    {user &&
-                      user.role === "Student" &&
-                      !isEnrolled(course.id) &&
-                      !isInstructor(course) && (
-                        <Button
-                          variant="outline-primary"
-                          onClick={() => enrollInCourse(course.id)}
-                        >
-                          Enroll
-                        </Button>
-                      )}
-                  </div>
-                </Card.Footer>
-              </Card>
+              <CourseCard
+                course={course}
+                isEnrolled={isEnrolled(course.id)}
+                isCompleted={isCourseCompleted(course.id)}
+                isInstructor={isInstructor(course)}
+                enrollmentId={getEnrollmentId(course.id)}
+                onEnrollmentChange={handleEnrollmentUpdate}
+              />
             </Col>
           ))}
         </Row>

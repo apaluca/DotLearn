@@ -12,16 +12,14 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import CourseCard from "./CourseCard";
 import {
   FaBook,
   FaChalkboardTeacher,
   FaUsers,
   FaGraduationCap,
-  FaClock,
-  FaCheckCircle,
   FaEdit,
   FaPlus,
-  FaSync,
 } from "react-icons/fa";
 
 function Dashboard() {
@@ -35,7 +33,6 @@ function Dashboard() {
     completed: 0,
     inProgress: 0,
   });
-  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,43 +84,28 @@ function Dashboard() {
     fetchData();
   }, [user]);
 
-  const markCourseAsCompleted = async (enrollmentId) => {
-    if (updatingStatus) return;
+  const handleEnrollmentChange = (action, courseId) => {
+    if (action === "drop") {
+      // Find the course to determine if it was active or completed
+      const droppedCourse = enrolledCourses.find((c) => c.id === courseId);
 
-    try {
-      setUpdatingStatus(true);
-
-      // Call the API to update enrollment status
-      await axios.put(`/api/enrollments/${enrollmentId}`, {
-        status: "Completed",
-      });
-
-      // Update the local state
       setEnrolledCourses((prevCourses) =>
-        prevCourses.map((course) =>
-          course.enrollmentId === enrollmentId
-            ? {
-                ...course,
-                status: "Completed",
-                completionDate: new Date().toISOString(),
-              }
-            : course,
-        ),
+        prevCourses.filter((c) => c.id !== courseId),
       );
 
       // Update stats
       setStats((prev) => ({
         ...prev,
-        completed: prev.completed + 1,
-        inProgress: prev.inProgress - 1,
+        totalEnrolled: prev.totalEnrolled - 1,
+        inProgress:
+          droppedCourse && droppedCourse.status === "Active"
+            ? prev.inProgress - 1
+            : prev.inProgress,
+        completed:
+          droppedCourse && droppedCourse.status === "Completed"
+            ? prev.completed - 1
+            : prev.completed,
       }));
-
-      alert("Course marked as completed!");
-    } catch (err) {
-      alert("Failed to update course status. Please try again.");
-      console.error(err);
-    } finally {
-      setUpdatingStatus(false);
     }
   };
 
@@ -254,77 +236,16 @@ function Dashboard() {
             <Row xs={1} md={2} lg={3} className="g-4">
               {enrolledCourses.map((course) => (
                 <Col key={course.id}>
-                  <Card className="h-100 shadow-sm">
-                    <Card.Body>
-                      <Card.Title>{course.title}</Card.Title>
-                      <Card.Text className="text-muted d-flex align-items-center gap-2 mb-3">
-                        <FaChalkboardTeacher />
-                        {course.instructorName}
-                      </Card.Text>
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="me-2">Status:</span>
-                        <Badge bg={getStatusBadgeColor(course.status)}>
-                          {course.status}
-                        </Badge>
-                      </div>
-                      {course.status === "Active" && (
-                        <div className="d-flex align-items-center">
-                          <FaClock className="text-muted me-2" />
-                          <small className="text-muted">
-                            Enrolled on:{" "}
-                            {new Date(
-                              course.enrollmentDate,
-                            ).toLocaleDateString()}
-                          </small>
-                        </div>
-                      )}
-                      {course.status === "Completed" && (
-                        <div className="d-flex align-items-center">
-                          <FaCheckCircle className="text-success me-2" />
-                          <small className="text-muted">
-                            Completed on:{" "}
-                            {new Date(
-                              course.completionDate,
-                            ).toLocaleDateString()}
-                          </small>
-                        </div>
-                      )}
-                    </Card.Body>
-                    <Card.Footer className="bg-white d-flex gap-2">
-                      <Button
-                        as={Link}
-                        to={`/courses/${course.id}`}
-                        variant={
-                          course.status === "Completed"
-                            ? "outline-primary"
-                            : "primary"
-                        }
-                        className="flex-grow-1"
-                      >
-                        {course.status === "Completed"
-                          ? "Review Course"
-                          : "Continue Learning"}
-                      </Button>
-
-                      {course.status === "Active" && (
-                        <Button
-                          variant="outline-success"
-                          className="d-flex align-items-center justify-content-center"
-                          title="Mark as Completed"
-                          onClick={() =>
-                            markCourseAsCompleted(course.enrollmentId)
-                          }
-                          disabled={updatingStatus}
-                        >
-                          {updatingStatus ? (
-                            <FaSync className="fa-spin" />
-                          ) : (
-                            <FaCheckCircle />
-                          )}
-                        </Button>
-                      )}
-                    </Card.Footer>
-                  </Card>
+                  <CourseCard
+                    course={course}
+                    isEnrolled={true}
+                    isCompleted={course.status === "Completed"}
+                    isInstructor={
+                      user && course.instructorId === parseInt(user.id)
+                    }
+                    enrollmentId={course.enrollmentId}
+                    onEnrollmentChange={handleEnrollmentChange}
+                  />
                 </Col>
               ))}
             </Row>
@@ -368,11 +289,9 @@ function Dashboard() {
                           </small>
                         </div>
                         <div className="d-flex align-items-center">
-                          <FaClock className="text-muted me-2" />
-                          <small className="text-muted">
-                            Created:{" "}
-                            {new Date(course.createdAt).toLocaleDateString()}
-                          </small>
+                          <Badge bg="info" className="me-2">
+                            Instructor
+                          </Badge>
                         </div>
                       </Card.Body>
                       <Card.Footer className="bg-white d-flex justify-content-between">
@@ -409,17 +328,6 @@ function Dashboard() {
       )}
     </div>
   );
-}
-
-function getStatusBadgeColor(status) {
-  switch (status) {
-    case "Active":
-      return "primary";
-    case "Completed":
-      return "success";
-    default:
-      return "info";
-  }
 }
 
 export default Dashboard;
