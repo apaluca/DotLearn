@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, Button, Badge, Modal } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   FaChalkboardTeacher,
@@ -21,6 +21,7 @@ function CourseCard({
 }) {
   const [showDropConfirm, setShowDropConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const navigate = useNavigate();
 
   const enrollInCourse = async () => {
     try {
@@ -86,6 +87,61 @@ function CourseCard({
     }
   };
 
+  // Function to navigate to the appropriate lesson
+  const navigateToCourse = async (e) => {
+    e.preventDefault(); // Prevent default Link behavior
+
+    // If not enrolled or is instructor, just go to the course page
+    if (!isEnrolled || isInstructor) {
+      navigate(`/courses/${course.id}`);
+      return;
+    }
+
+    try {
+      // If enrolled, get progress to find the right lesson
+      const response = await axios.get(`/api/progress/course/${course.id}`);
+
+      // Find a lesson in progress
+      let targetLessonId = null;
+      let foundInProgress = false;
+      let lastCompletedLessonId = null;
+
+      // Loop through modules to find our target lesson
+      for (const module of response.data.modules) {
+        for (const lesson of module.lessons) {
+          if (lesson.startedAt && !lesson.isCompleted) {
+            // Found a lesson in progress
+            targetLessonId = lesson.lessonId;
+            foundInProgress = true;
+            break;
+          }
+
+          if (lesson.isCompleted) {
+            // Keep track of the last completed lesson
+            lastCompletedLessonId = lesson.lessonId;
+          }
+        }
+
+        if (foundInProgress) break;
+      }
+
+      if (targetLessonId) {
+        // Navigate to the in-progress lesson
+        navigate(`/courses/${course.id}/lesson/${targetLessonId}`);
+      } else if (lastCompletedLessonId) {
+        // Navigate to the last completed lesson (the course detail will handle finding the next one)
+        navigate(`/courses/${course.id}/lesson/${lastCompletedLessonId}`);
+      } else {
+        // No progress, just go to the course page
+        navigate(`/courses/${course.id}`);
+      }
+    } catch (error) {
+      console.error("Error fetching progress:", error);
+      // Fall back to regular navigation
+      navigate(`/courses/${course.id}`);
+    }
+  };
+
   return (
     <Card className="h-100 shadow-sm">
       <Card.Body>
@@ -146,8 +202,7 @@ function CourseCard({
       <Card.Footer className="bg-white">
         <div className="d-grid gap-2">
           <Button
-            as={Link}
-            to={`/courses/${course.id}`}
+            onClick={navigateToCourse}
             variant={
               isEnrolled
                 ? isCompleted

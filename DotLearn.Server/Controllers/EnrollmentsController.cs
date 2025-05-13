@@ -237,6 +237,27 @@ namespace DotLearn.Server.Controllers
                 return Forbid();
             }
 
+            // Find all lessons for this course
+            var lessons = await _context.Lessons
+                .Where(l => l.Module.CourseId == enrollment.CourseId)
+                .Select(l => l.Id)
+                .ToListAsync();
+
+            // Delete all progress records for these lessons for this user
+            var progressRecords = await _context.LessonProgress
+                .Where(lp => lp.UserId == enrollment.UserId && lessons.Contains(lp.LessonId))
+                .ToListAsync();
+
+            _context.LessonProgress.RemoveRange(progressRecords);
+
+            // Delete quiz attempts as well if they exist
+            var quizAttempts = await _context.QuizAttempts
+                .Where(qa => qa.UserId == enrollment.UserId && lessons.Contains(qa.LessonId))
+                .ToListAsync();
+
+            _context.QuizAttempts.RemoveRange(quizAttempts);
+
+            // Delete the enrollment
             _context.Enrollments.Remove(enrollment);
             await _context.SaveChangesAsync();
 
@@ -312,6 +333,27 @@ namespace DotLearn.Server.Controllers
                 return NotFound(new { message = "Enrollment not found" });
             }
 
+            // Find all lessons for this course
+            var lessons = await _context.Lessons
+                .Where(l => l.Module.CourseId == enrollment.CourseId)
+                .Select(l => l.Id)
+                .ToListAsync();
+
+            // Delete all progress records for these lessons for this user
+            var progressRecords = await _context.LessonProgress
+                .Where(lp => lp.UserId == enrollment.UserId && lessons.Contains(lp.LessonId))
+                .ToListAsync();
+
+            _context.LessonProgress.RemoveRange(progressRecords);
+
+            // Delete quiz attempts as well if they exist
+            var quizAttempts = await _context.QuizAttempts
+                .Where(qa => qa.UserId == enrollment.UserId && lessons.Contains(qa.LessonId))
+                .ToListAsync();
+
+            _context.QuizAttempts.RemoveRange(quizAttempts);
+
+            // Delete the enrollment
             _context.Enrollments.Remove(enrollment);
             await _context.SaveChangesAsync();
 

@@ -8,7 +8,6 @@ import {
   Alert,
   Spinner,
   Badge,
-  Breadcrumb,
   ProgressBar,
 } from "react-bootstrap";
 import axios from "axios";
@@ -77,6 +76,14 @@ function CourseDetail() {
                   `/api/progress/course/${id}`,
                 );
                 setCourseProgress(progressResponse.data);
+
+                // Find the appropriate lesson to show based on progress
+                if (progressResponse.data && !lessonId) {
+                  findAndSetActiveLesson(
+                    courseResponse.data.modules,
+                    progressResponse.data,
+                  );
+                }
               } catch (err) {
                 console.error("Error fetching course progress:", err);
               }
@@ -107,8 +114,8 @@ function CourseDetail() {
           }
           setLoadingLesson(false);
         }
-        // Otherwise set default active module and lesson
-        else if (firstModuleWithLessons) {
+        // Otherwise set default active module and lesson if we didn't find an in-progress one
+        else if (firstModuleWithLessons && !activeLesson) {
           setActiveModule(firstModuleWithLessons);
           if (firstModuleWithLessons.lessons.length > 0) {
             setActiveLesson(firstModuleWithLessons.lessons[0]);
@@ -124,6 +131,107 @@ function CourseDetail() {
 
     fetchCourseData();
   }, [id, lessonId, user]);
+
+  // Helper function to find and set the lesson based on progress
+  const findAndSetActiveLesson = (modules, progressData) => {
+    // First look for a lesson that's in progress
+    let lessonInProgress = null;
+    let moduleOfLessonInProgress = null;
+
+    // Then track the last completed lesson
+    let lastCompletedLesson = null;
+    let moduleOfLastCompletedLesson = null;
+
+    // Loop through all modules and their lessons to find the right lesson
+    for (const module of modules) {
+      if (!module.lessons || module.lessons.length === 0) continue;
+
+      for (const lesson of module.lessons) {
+        // Find the matching progress data for this lesson
+        let foundProgress = false;
+
+        for (const moduleProgress of progressData.modules) {
+          for (const lessonProgress of moduleProgress.lessons) {
+            if (lessonProgress.lessonId === lesson.id) {
+              foundProgress = true;
+
+              // If a lesson is started but not completed, that's our priority
+              if (lessonProgress.startedAt && !lessonProgress.isCompleted) {
+                lessonInProgress = lesson;
+                moduleOfLessonInProgress = module;
+                break;
+              }
+
+              // Track the last completed lesson
+              if (lessonProgress.isCompleted) {
+                lastCompletedLesson = lesson;
+                moduleOfLastCompletedLesson = module;
+              }
+            }
+          }
+          if (foundProgress) break;
+        }
+
+        if (lessonInProgress) break; // We found a lesson in progress
+      }
+
+      if (lessonInProgress) break; // We found a lesson in progress
+    }
+
+    // If we found a lesson in progress, set it as active
+    if (lessonInProgress && moduleOfLessonInProgress) {
+      setActiveModule(moduleOfLessonInProgress);
+      setActiveLesson(lessonInProgress);
+
+      // Update the URL without reloading
+      navigate(`/courses/${id}/lesson/${lessonInProgress.id}`, {
+        replace: true,
+      });
+      return;
+    }
+
+    // If we found a completed lesson, find the next one
+    if (lastCompletedLesson && moduleOfLastCompletedLesson) {
+      // Find the index of the last completed lesson
+      const lessonIndex = moduleOfLastCompletedLesson.lessons.findIndex(
+        (l) => l.id === lastCompletedLesson.id,
+      );
+
+      // If there's a next lesson in the same module
+      if (lessonIndex < moduleOfLastCompletedLesson.lessons.length - 1) {
+        const nextLesson = moduleOfLastCompletedLesson.lessons[lessonIndex + 1];
+        setActiveModule(moduleOfLastCompletedLesson);
+        setActiveLesson(nextLesson);
+
+        // Update the URL without reloading
+        navigate(`/courses/${id}/lesson/${nextLesson.id}`, { replace: true });
+        return;
+      }
+
+      // If we need to move to the next module
+      const moduleIndex = modules.findIndex(
+        (m) => m.id === moduleOfLastCompletedLesson.id,
+      );
+      if (moduleIndex < modules.length - 1) {
+        // Find the next module with lessons
+        for (let i = moduleIndex + 1; i < modules.length; i++) {
+          if (modules[i].lessons && modules[i].lessons.length > 0) {
+            setActiveModule(modules[i]);
+            setActiveLesson(modules[i].lessons[0]);
+
+            // Update the URL without reloading
+            navigate(`/courses/${id}/lesson/${modules[i].lessons[0].id}`, {
+              replace: true,
+            });
+            return;
+          }
+        }
+      }
+    }
+
+    // If we didn't find any progress or couldn't determine the next lesson,
+    // the default behavior (first lesson) will be used instead
+  };
 
   const handleLessonSelect = (module, lesson) => {
     setLoadingLesson(true);
