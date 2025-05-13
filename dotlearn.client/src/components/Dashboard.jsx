@@ -417,8 +417,6 @@ function getStatusBadgeColor(status) {
       return "primary";
     case "Completed":
       return "success";
-    case "Dropped":
-      return "secondary";
     default:
       return "info";
   }

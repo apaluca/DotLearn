@@ -360,8 +360,6 @@ function getStatusBadgeColor(status) {
       return "success";
     case "Active":
       return "primary";
-    case "Dropped":
-      return "secondary";
     default:
       return "info";
   }
