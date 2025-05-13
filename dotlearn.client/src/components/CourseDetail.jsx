@@ -705,11 +705,11 @@ function CourseDetail() {
                   ) : (
                     <LessonView
                       lesson={activeLesson}
-                      moduleTitle={activeModule.title}
                       onLessonComplete={handleLessonComplete}
                       nextLesson={getNextLesson()}
                       prevLesson={getPreviousLesson()}
                       isInstructor={isInstructor()}
+                      isEnrolled={!!enrollment} // Pass isEnrolled prop based on enrollment status
                     />
                   )
                 ) : (

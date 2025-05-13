@@ -9,5 +9,6 @@ namespace DotLearn.Server.Data.Repositories
         Task<Module> GetModuleWithCourseAsync(int moduleId);
         Task<bool> IsLessonTypeQuizAsync(int lessonId);
         Task ReorderLessonsAsync(int moduleId, int lessonId, int oldIndex, int newIndex);
+        Task<List<int>> GetLessonIdsByCourseIdAsync(int courseId);
     }
 }

@@ -81,5 +81,17 @@ namespace DotLearn.Server.Data.Repositories
 
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<int>> GetLessonIdsByCourseIdAsync(int courseId)
+        {
+            return await _context.Lessons
+                .Join(_context.Modules,
+                    l => l.ModuleId,
+                    m => m.Id,
+                    (l, m) => new { Lesson = l, Module = m })
+                .Where(x => x.Module.CourseId == courseId)
+                .Select(x => x.Lesson.Id)
+                .ToListAsync();
+        }
     }
 }

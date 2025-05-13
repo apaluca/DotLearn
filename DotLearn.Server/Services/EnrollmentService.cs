@@ -254,11 +254,7 @@ namespace DotLearn.Server.Services
             }
 
             // Find all lessons for this course
-            var lessons = await _lessonRepository.GetAllAsync();
-            var lessonIds = lessons
-                .Where(l => l.Module.CourseId == enrollment.CourseId)
-                .Select(l => l.Id)
-                .ToList();
+            var lessonIds = await _lessonRepository.GetLessonIdsByCourseIdAsync(enrollment.CourseId);
 
             // Delete all progress records for these lessons for this user
             var progressRecords = await _progressRepository.GetAllAsync();
@@ -352,11 +348,7 @@ namespace DotLearn.Server.Services
             }
 
             // Find all lessons for this course
-            var lessons = await _lessonRepository.GetAllAsync();
-            var lessonIds = lessons
-                .Where(l => l.Module.CourseId == enrollment.CourseId)
-                .Select(l => l.Id)
-                .ToList();
+            var lessonIds = await _lessonRepository.GetLessonIdsByCourseIdAsync(enrollment.CourseId);
 
             // Delete all progress records for these lessons for this user
             var progressRecords = await _progressRepository.GetAllAsync();

@@ -17,6 +17,7 @@ function LessonView({
   nextLesson,
   prevLesson,
   isInstructor = false,
+  isEnrolled = false, // Added isEnrolled prop
 }) {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -339,7 +340,7 @@ function LessonView({
           </div>
 
           <div className="d-flex gap-2">
-            {!isInstructor && lesson.type !== "Quiz" && (
+            {!isInstructor && lesson.type !== "Quiz" && isEnrolled && (
               <>
                 {progress.isCompleted ? (
                   <Button
