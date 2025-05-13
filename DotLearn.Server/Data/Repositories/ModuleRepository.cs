@@ -7,7 +7,7 @@ namespace DotLearn.Server.Data.Repositories
     {
         public ModuleRepository(LmsDbContext context) : base(context) { }
 
-        public async Task<Module> GetModuleWithDetailsAsync(int id)
+        public async Task<Module?> GetModuleWithDetailsAsync(int id)
         {
             return await _context.Modules
                 .Include(m => m.Course)

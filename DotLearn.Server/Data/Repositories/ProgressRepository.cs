@@ -7,7 +7,7 @@ namespace DotLearn.Server.Data.Repositories
     {
         public ProgressRepository(LmsDbContext context) : base(context) { }
 
-        public async Task<LessonProgress> GetProgressByUserAndLessonAsync(int userId, int lessonId)
+        public async Task<LessonProgress?> GetProgressByUserAndLessonAsync(int userId, int lessonId)
         {
             return await _context.LessonProgress
                 .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.LessonId == lessonId);

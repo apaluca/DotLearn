@@ -7,7 +7,7 @@ namespace DotLearn.Server.Data.Repositories
     {
         public CourseRepository(LmsDbContext context) : base(context) { }
 
-        public async Task<Course> GetCourseWithDetailsAsync(int id)
+        public async Task<Course?> GetCourseWithDetailsAsync(int id)
         {
             return await _context.Courses
                 .Include(c => c.Instructor)

@@ -7,7 +7,7 @@ namespace DotLearn.Server.Data.Repositories
     {
         public EnrollmentRepository(LmsDbContext context) : base(context) { }
 
-        public async Task<Enrollment> GetEnrollmentWithDetailsAsync(int id)
+        public async Task<Enrollment?> GetEnrollmentWithDetailsAsync(int id)
         {
             return await _context.Enrollments
                 .Include(e => e.User)

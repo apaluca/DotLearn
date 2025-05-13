@@ -8,7 +8,7 @@ namespace DotLearn.Server.Data.Repositories
     {
         public LessonRepository(LmsDbContext context) : base(context) { }
 
-        public async Task<Lesson> GetLessonWithDetailsAsync(int id)
+        public async Task<Lesson?> GetLessonWithDetailsAsync(int id)
         {
             return await _context.Lessons
                 .Include(l => l.Module)
@@ -25,7 +25,7 @@ namespace DotLearn.Server.Data.Repositories
                 .ToListAsync();
         }
 
-        public async Task<Module> GetModuleWithCourseAsync(int moduleId)
+        public async Task<Module?> GetModuleWithCourseAsync(int moduleId)
         {
             return await _context.Modules
                 .Include(m => m.Course)

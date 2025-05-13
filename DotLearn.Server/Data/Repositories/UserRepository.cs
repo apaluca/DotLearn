@@ -8,13 +8,13 @@ namespace DotLearn.Server.Data.Repositories
     {
         public UserRepository(LmsDbContext context) : base(context) { }
 
-        public async Task<User> GetUserByUsernameAsync(string username)
+        public async Task<User?> GetUserByUsernameAsync(string username)
         {
             return await _context.Users
                 .FirstOrDefaultAsync(u => u.Username == username);
         }
 
-        public async Task<User> GetUserByEmailAsync(string email)
+        public async Task<User?> GetUserByEmailAsync(string email)
         {
             return await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == email);

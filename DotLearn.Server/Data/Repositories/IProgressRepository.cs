@@ -4,7 +4,7 @@ namespace DotLearn.Server.Data.Repositories
 {
     public interface IProgressRepository : IRepository<LessonProgress>
     {
-        Task<LessonProgress> GetProgressByUserAndLessonAsync(int userId, int lessonId);
+        Task<LessonProgress?> GetProgressByUserAndLessonAsync(int userId, int lessonId);
         Task<IEnumerable<LessonProgress>> GetProgressByUserAndCourseAsync(int userId, int courseId);
         Task<IEnumerable<LessonProgress>> GetProgressByLessonAsync(int lessonId);
         Task<int> GetCompletedLessonsCountAsync(int userId, int courseId);

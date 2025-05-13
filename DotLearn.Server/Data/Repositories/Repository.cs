@@ -18,7 +18,7 @@ namespace DotLearn.Server.Data.Repositories
             return await _dbSet.ToListAsync();
         }
 
-        public virtual async Task<T> GetByIdAsync(int id)
+        public virtual async Task<T?> GetByIdAsync(int id)
         {
             return await _dbSet.FindAsync(id);
         }
@@ -29,14 +29,16 @@ namespace DotLearn.Server.Data.Repositories
             return entity;
         }
 
-        public virtual async Task UpdateAsync(T entity)
+        public virtual Task UpdateAsync(T entity)
         {
             _dbSet.Update(entity);
+            return Task.CompletedTask;
         }
 
-        public virtual async Task DeleteAsync(T entity)
+        public virtual Task DeleteAsync(T entity)
         {
             _dbSet.Remove(entity);
+            return Task.CompletedTask;
         }
 
         public virtual async Task<bool> ExistsAsync(int id)

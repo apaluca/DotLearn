@@ -5,8 +5,8 @@ namespace DotLearn.Server.Data.Repositories
 {
     public interface IUserRepository : IRepository<User>
     {
-        Task<User> GetUserByUsernameAsync(string username);
-        Task<User> GetUserByEmailAsync(string email);
+        Task<User?> GetUserByUsernameAsync(string username);
+        Task<User?> GetUserByEmailAsync(string email);
         Task<IEnumerable<User>> GetUsersByRoleAsync(UserRole role);
         Task<bool> IsUsernameUniqueAsync(string username);
         Task<bool> IsEmailUniqueAsync(string email);
