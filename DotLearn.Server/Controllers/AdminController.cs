@@ -131,11 +131,7 @@ namespace DotLearn.Server.Controllers
         {
             try
             {
-                string role = string.Empty;
-                if (Request.Headers.ContainsKey("X-User-Role"))
-                {
-                    role = Request.Headers["X-User-Role"];
-                }
+                string role = Request.Headers.ContainsKey("X-User-Role") ? Request.Headers["X-User-Role"].ToString() : string.Empty;
 
                 var user = await _adminService.CreateUserAsync(registerModel, role);
                 return Created($"api/admin/users/{user.Id}", user);

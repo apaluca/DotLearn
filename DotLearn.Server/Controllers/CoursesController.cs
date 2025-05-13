@@ -94,7 +94,7 @@ namespace DotLearn.Server.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
-            catch (UnauthorizedException ex)
+            catch (UnauthorizedException)
             {
                 return Forbid();
             }
