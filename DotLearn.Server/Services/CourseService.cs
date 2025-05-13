@@ -37,7 +37,7 @@ namespace DotLearn.Server.Services
                     Title = course.Title,
                     Description = course.Description,
                     InstructorId = course.InstructorId,
-                    InstructorName = $"{instructor.FirstName} {instructor.LastName}",
+                    InstructorName = instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "Unknown Instructor",
                     CreatedAt = course.CreatedAt,
                     UpdatedAt = course.UpdatedAt,
                     EnrollmentCount = enrollmentCount
@@ -105,7 +105,7 @@ namespace DotLearn.Server.Services
                 Title = course.Title,
                 Description = course.Description,
                 InstructorId = course.InstructorId,
-                InstructorName = $"{instructor.FirstName} {instructor.LastName}",
+                InstructorName = instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "Unknown Instructor",
                 CreatedAt = course.CreatedAt,
                 UpdatedAt = course.UpdatedAt,
                 EnrollmentCount = 0

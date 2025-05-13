@@ -66,9 +66,27 @@ namespace DotLearn.Server.Services
             foreach (var enrollment in enrollments)
             {
                 // Get user and course details
+                if (enrollment == null)
+                {
+                    throw new NotFoundException("Enrollment not found");
+                }
+
                 var user = await _userRepository.GetByIdAsync(enrollment.UserId);
+                if (user == null)
+                {
+                    throw new NotFoundException($"User with ID {enrollment.UserId} not found");
+                }
+
                 var course = await _courseRepository.GetByIdAsync(enrollment.CourseId);
+                if (course == null)
+                {
+                    throw new NotFoundException($"Course with ID {enrollment.CourseId} not found");
+                }
+
                 var instructor = await _userRepository.GetByIdAsync(course.InstructorId);
+                var instructorName = instructor != null
+                    ? $"{instructor.FirstName} {instructor.LastName}"
+                    : "Unknown Instructor";
 
                 result.Add(new EnrollmentDto
                 {
@@ -77,7 +95,7 @@ namespace DotLearn.Server.Services
                     UserName = $"{user.FirstName} {user.LastName}",
                     CourseId = enrollment.CourseId,
                     CourseTitle = course.Title,
-                    InstructorName = $"{instructor.FirstName} {instructor.LastName}",
+                    InstructorName = instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "Unknown Instructor",
                     EnrollmentDate = enrollment.EnrollmentDate,
                     Status = enrollment.Status.ToString(),
                     CompletionDate = enrollment.CompletionDate
@@ -107,7 +125,7 @@ namespace DotLearn.Server.Services
                         Title = course.Title,
                         Description = course.Description,
                         InstructorId = course.InstructorId,
-                        InstructorName = $"{instructor.FirstName} {instructor.LastName}",
+                        InstructorName = instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "Unknown Instructor",
                         Status = enrollment.Status.ToString(),
                         EnrollmentDate = enrollment.EnrollmentDate,
                         CompletionDate = enrollment.CompletionDate,
@@ -153,10 +171,10 @@ namespace DotLearn.Server.Services
             {
                 Id = enrollment.Id,
                 UserId = enrollment.UserId,
-                UserName = $"{user.FirstName} {user.LastName}",
+                UserName = user != null ? $"{user.FirstName} {user.LastName}" : "Unknown Instructor",
                 CourseId = enrollment.CourseId,
                 CourseTitle = course.Title,
-                InstructorName = $"{instructor.FirstName} {instructor.LastName}",
+                InstructorName = instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "Unknown Instructor",
                 EnrollmentDate = enrollment.EnrollmentDate,
                 Status = enrollment.Status.ToString(),
                 CompletionDate = enrollment.CompletionDate
@@ -328,7 +346,7 @@ namespace DotLearn.Server.Services
                 UserName = $"{user.FirstName} {user.LastName}",
                 CourseId = enrollment.CourseId,
                 CourseTitle = course.Title,
-                InstructorName = $"{instructor.FirstName} {instructor.LastName}",
+                InstructorName = instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : "Unknown Instructor",
                 EnrollmentDate = enrollment.EnrollmentDate,
                 Status = enrollment.Status.ToString(),
                 CompletionDate = enrollment.CompletionDate
