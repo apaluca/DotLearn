@@ -191,7 +191,6 @@ function Quiz({ lessonId, onQuizComplete, introContent }) {
           </div>
 
           <Alert variant="info" className="d-flex align-items-center">
-            <FaInfoCircle className="me-2" size={20} />
             <div>
               <strong>Quiz Information:</strong>{" "}
               <span className="ms-1">

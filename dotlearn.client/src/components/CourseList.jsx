@@ -26,7 +26,7 @@ function CourseList() {
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [filteredCourses, setFilteredCourses] = useState([]);
-  const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -47,10 +47,7 @@ function CourseList() {
             const enrollmentsResponse = await axios.get(
               "/api/enrollments/courses",
             );
-            const enrolledIds = new Set(
-              enrollmentsResponse.data.map((course) => course.id),
-            );
-            setEnrolledCourseIds(enrolledIds);
+            setEnrolledCourses(enrollmentsResponse.data);
           } catch (err) {
             console.error("Error fetching enrollments:", err);
           }
@@ -89,10 +86,16 @@ function CourseList() {
     }
 
     try {
-      await axios.post("/api/enrollments", { courseId });
+      const response = await axios.post("/api/enrollments", { courseId });
 
-      // Add to the enrolled courses set
-      setEnrolledCourseIds((prev) => new Set([...prev, courseId]));
+      // Add the new enrollment to the enrolled courses
+      if (response.data) {
+        setEnrolledCourses((prev) => [...prev, response.data]);
+      } else {
+        // If response data structure is unclear, refresh enrollments
+        const enrollmentsResponse = await axios.get("/api/enrollments/courses");
+        setEnrolledCourses(enrollmentsResponse.data);
+      }
 
       alert("Successfully enrolled in the course!");
     } catch (err) {
@@ -105,7 +108,12 @@ function CourseList() {
   };
 
   const isEnrolled = (courseId) => {
-    return enrolledCourseIds.has(courseId);
+    return enrolledCourses.some((course) => course.id === courseId);
+  };
+
+  const isCourseCompleted = (courseId) => {
+    const course = enrolledCourses.find((course) => course.id === courseId);
+    return course && course.status === "Completed";
   };
 
   // Don't show enroll button if user is the instructor of the course
@@ -191,8 +199,13 @@ function CourseList() {
                   </div>
 
                   {isEnrolled(course.id) && (
-                    <Badge bg="success" className="mb-2">
-                      You're enrolled
+                    <Badge
+                      bg={isCourseCompleted(course.id) ? "success" : "primary"}
+                      className="mb-2"
+                    >
+                      {isCourseCompleted(course.id)
+                        ? "Completed"
+                        : "You're enrolled"}
                     </Badge>
                   )}
 
@@ -207,11 +220,19 @@ function CourseList() {
                     <Button
                       as={Link}
                       to={`/courses/${course.id}`}
-                      variant={isEnrolled(course.id) ? "success" : "primary"}
+                      variant={
+                        isEnrolled(course.id)
+                          ? isCourseCompleted(course.id)
+                            ? "outline-primary"
+                            : "success"
+                          : "primary"
+                      }
                       className="d-flex align-items-center justify-content-center gap-2"
                     >
                       {isEnrolled(course.id)
-                        ? "Continue Learning"
+                        ? isCourseCompleted(course.id)
+                          ? "Review Course"
+                          : "Continue Learning"
                         : "View Course"}
                       <FaArrowRight />
                     </Button>
