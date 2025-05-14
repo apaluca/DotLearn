@@ -9,6 +9,9 @@ import {
   Spinner,
   Badge,
   ProgressBar,
+  Container,
+  Row,
+  Col,
 } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -22,7 +25,7 @@ import {
   FaPencilAlt,
   FaTrash,
   FaCheckCircle,
-  FaUser,
+  FaEdit,
   FaChartLine,
 } from "react-icons/fa";
 
@@ -77,7 +80,7 @@ function CourseDetail() {
                 );
                 setCourseProgress(progressResponse.data);
 
-                // Find the appropriate lesson to show based on progress
+                // Find appropriate lesson if not specified
                 if (progressResponse.data && !lessonId) {
                   findAndSetActiveLesson(
                     courseResponse.data.modules,
@@ -93,12 +96,12 @@ function CourseDetail() {
           }
         }
 
-        // Find the first module with lessons by default
+        // Find first module with lessons by default
         const firstModuleWithLessons = courseResponse.data.modules.find(
           (m) => m.lessons && m.lessons.length > 0,
         );
 
-        // If a specific lesson ID is provided in the URL
+        // If a specific lesson ID is provided
         if (lessonId) {
           setLoadingLesson(true);
           // Find the lesson and its module
@@ -114,7 +117,7 @@ function CourseDetail() {
           }
           setLoadingLesson(false);
         }
-        // Otherwise set default active module and lesson if we didn't find an in-progress one
+        // Otherwise set default active module and lesson
         else if (firstModuleWithLessons && !activeLesson) {
           setActiveModule(firstModuleWithLessons);
           if (firstModuleWithLessons.lessons.length > 0) {
@@ -134,20 +137,20 @@ function CourseDetail() {
 
   // Helper function to find and set the lesson based on progress
   const findAndSetActiveLesson = (modules, progressData) => {
-    // First look for a lesson that's in progress
+    // Find a lesson that's in progress
     let lessonInProgress = null;
     let moduleOfLessonInProgress = null;
 
-    // Then track the last completed lesson
+    // Track the last completed lesson
     let lastCompletedLesson = null;
     let moduleOfLastCompletedLesson = null;
 
-    // Loop through all modules and their lessons to find the right lesson
+    // Loop through all modules and their lessons
     for (const module of modules) {
       if (!module.lessons || module.lessons.length === 0) continue;
 
       for (const lesson of module.lessons) {
-        // Find the matching progress data for this lesson
+        // Find matching progress data
         let foundProgress = false;
 
         for (const moduleProgress of progressData.modules) {
@@ -155,7 +158,7 @@ function CourseDetail() {
             if (lessonProgress.lessonId === lesson.id) {
               foundProgress = true;
 
-              // If a lesson is started but not completed, that's our priority
+              // If started but not completed, that's our priority
               if (lessonProgress.startedAt && !lessonProgress.isCompleted) {
                 lessonInProgress = lesson;
                 moduleOfLessonInProgress = module;
@@ -172,54 +175,48 @@ function CourseDetail() {
           if (foundProgress) break;
         }
 
-        if (lessonInProgress) break; // We found a lesson in progress
+        if (lessonInProgress) break;
       }
 
-      if (lessonInProgress) break; // We found a lesson in progress
+      if (lessonInProgress) break;
     }
 
-    // If we found a lesson in progress, set it as active
+    // If found a lesson in progress, set it active
     if (lessonInProgress && moduleOfLessonInProgress) {
       setActiveModule(moduleOfLessonInProgress);
       setActiveLesson(lessonInProgress);
-
-      // Update the URL without reloading
       navigate(`/courses/${id}/lesson/${lessonInProgress.id}`, {
         replace: true,
       });
       return;
     }
 
-    // If we found a completed lesson, find the next one
+    // If found a completed lesson, find the next one
     if (lastCompletedLesson && moduleOfLastCompletedLesson) {
-      // Find the index of the last completed lesson
+      // Find index of last completed lesson
       const lessonIndex = moduleOfLastCompletedLesson.lessons.findIndex(
         (l) => l.id === lastCompletedLesson.id,
       );
 
-      // If there's a next lesson in the same module
+      // If there's a next lesson in same module
       if (lessonIndex < moduleOfLastCompletedLesson.lessons.length - 1) {
         const nextLesson = moduleOfLastCompletedLesson.lessons[lessonIndex + 1];
         setActiveModule(moduleOfLastCompletedLesson);
         setActiveLesson(nextLesson);
-
-        // Update the URL without reloading
         navigate(`/courses/${id}/lesson/${nextLesson.id}`, { replace: true });
         return;
       }
 
-      // If we need to move to the next module
+      // If we need to move to next module
       const moduleIndex = modules.findIndex(
         (m) => m.id === moduleOfLastCompletedLesson.id,
       );
       if (moduleIndex < modules.length - 1) {
-        // Find the next module with lessons
+        // Find next module with lessons
         for (let i = moduleIndex + 1; i < modules.length; i++) {
           if (modules[i].lessons && modules[i].lessons.length > 0) {
             setActiveModule(modules[i]);
             setActiveLesson(modules[i].lessons[0]);
-
-            // Update the URL without reloading
             navigate(`/courses/${id}/lesson/${modules[i].lessons[0].id}`, {
               replace: true,
             });
@@ -228,17 +225,12 @@ function CourseDetail() {
         }
       }
     }
-
-    // If we didn't find any progress or couldn't determine the next lesson,
-    // the default behavior (first lesson) will be used instead
   };
 
   const handleLessonSelect = (module, lesson) => {
     setLoadingLesson(true);
     setActiveModule(module);
     setActiveLesson(lesson);
-
-    // Update the URL without reloading the page
     navigate(`/courses/${id}/lesson/${lesson.id}`, { replace: true });
     setLoadingLesson(false);
   };
@@ -253,18 +245,13 @@ function CourseDetail() {
       setEnrollingInProgress(true);
       await axios.post("/api/enrollments", { courseId: parseInt(id) });
 
-      // Refresh the enrollment status
+      // Refresh enrollment status
       const enrollmentsResponse = await axios.get("/api/enrollments/courses");
       const userEnrollment = enrollmentsResponse.data.find(
         (e) => e.id === parseInt(id),
       );
       setEnrollment(userEnrollment);
-      alert("Successfully enrolled in the course!");
     } catch (err) {
-      alert(
-        err.response?.data?.message ||
-          "Failed to enroll in the course. Please try again.",
-      );
       console.error(err);
     } finally {
       setEnrollingInProgress(false);
@@ -282,16 +269,14 @@ function CourseDetail() {
 
     try {
       await axios.delete(`/api/courses/${id}`);
-      alert("Course deleted successfully.");
       navigate("/courses");
     } catch (err) {
-      alert("Failed to delete the course. Please try again.");
       console.error(err);
     }
   };
 
   const handleLessonComplete = async (lessonId, isCompleted = true) => {
-    // Update local state to reflect completion or uncompletion
+    // Update local state
     setModules((prevModules) =>
       prevModules.map((m) => {
         if (m.id === activeModule.id) {
@@ -315,6 +300,7 @@ function CourseDetail() {
     }
   };
 
+  // Navigation functions
   const getNextLesson = () => {
     if (!activeLesson || !activeModule) return null;
 
@@ -323,7 +309,7 @@ function CourseDetail() {
       (l) => l.id === activeLesson.id,
     );
 
-    // Check if there's another lesson in this module
+    // If there's another lesson in this module
     if (currentLessonIndex < activeModule.lessons.length - 1) {
       return activeModule.lessons[currentLessonIndex + 1];
     }
@@ -351,7 +337,7 @@ function CourseDetail() {
       (l) => l.id === activeLesson.id,
     );
 
-    // Check if there's a previous lesson in this module
+    // If there's a previous lesson in this module
     if (currentLessonIndex > 0) {
       return activeModule.lessons[currentLessonIndex - 1];
     }
@@ -371,7 +357,7 @@ function CourseDetail() {
     return null;
   };
 
-  // Check if the logged in user is the instructor or admin
+  // Check if user is instructor or admin
   const isInstructorOrAdmin = () => {
     if (!user || !course) return false;
     return (
@@ -380,7 +366,6 @@ function CourseDetail() {
     );
   };
 
-  // Check if the current user is the instructor of this course
   const isInstructor = () => {
     if (!user || !course) return false;
     return parseInt(user.id) === course.instructorId;
@@ -404,141 +389,157 @@ function CourseDetail() {
 
   if (loading) {
     return (
-      <div className="text-center my-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading course details...</p>
-      </div>
+      <Container>
+        <div className="text-center my-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-3">Loading course details...</p>
+        </div>
+      </Container>
     );
   }
 
   if (error) {
-    return <Alert variant="danger">{error}</Alert>;
+    return (
+      <Container>
+        <Alert variant="danger">{error}</Alert>
+      </Container>
+    );
   }
 
   if (!course) {
-    return <Alert variant="warning">Course not found.</Alert>;
+    return (
+      <Container>
+        <Alert variant="warning">Course not found.</Alert>
+      </Container>
+    );
   }
 
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="mb-0">{course.title}</h1>
+    <Container>
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+        <h1 className="mb-3 mb-md-0">{course.title}</h1>
 
-        <div>
-          {isInstructorOrAdmin() && (
-            <div className="d-flex gap-2">
-              <Button
-                as={Link}
-                to={`/courses/${id}/students`}
-                variant="outline-primary"
-                className="d-flex align-items-center gap-2"
-              >
-                <FaUsers /> View Students
-              </Button>
-              <Button
-                as={Link}
-                to={`/courses/editor/${course.id}`}
-                variant="outline-primary"
-                className="d-flex align-items-center gap-2"
-              >
-                <FaBook /> Edit Content
-              </Button>
-              <Button
-                as={Link}
-                to={`/courses/edit/${course.id}`}
-                variant="outline-primary"
-                className="d-flex align-items-center gap-2"
-              >
-                <FaPencilAlt /> Edit Details
-              </Button>
-              <Button
-                variant="outline-danger"
-                onClick={deleteCourse}
-                className="d-flex align-items-center gap-2"
-              >
-                <FaTrash /> Delete
-              </Button>
-            </div>
-          )}
-        </div>
+        {isInstructorOrAdmin() && (
+          <div className="d-flex gap-2 flex-wrap">
+            <Button
+              as={Link}
+              to={`/courses/${id}/students`}
+              variant="outline-primary"
+              className="d-flex align-items-center gap-2"
+              size="sm"
+            >
+              <FaUsers /> Students
+            </Button>
+            <Button
+              as={Link}
+              to={`/courses/editor/${course.id}`}
+              variant="outline-primary"
+              className="d-flex align-items-center gap-2"
+              size="sm"
+            >
+              <FaBook /> Edit Content
+            </Button>
+            <Button
+              as={Link}
+              to={`/courses/edit/${course.id}`}
+              variant="outline-primary"
+              className="d-flex align-items-center gap-2"
+              size="sm"
+            >
+              <FaEdit /> Edit Details
+            </Button>
+            <Button
+              variant="outline-danger"
+              onClick={deleteCourse}
+              className="d-flex align-items-center gap-2"
+              size="sm"
+            >
+              <FaTrash /> Delete
+            </Button>
+          </div>
+        )}
       </div>
 
-      <Card className="mb-4 shadow-sm">
-        <Card.Body>
-          <div className="d-md-flex justify-content-between">
-            <div>
-              <p className="text-muted mb-2 d-flex align-items-center gap-2">
-                <FaChalkboardTeacher /> Instructor: {course.instructorName}
-              </p>
+      <Row className="mb-4">
+        <Col lg={8}>
+          <Card className="border-0 shadow-sm mb-4 mb-lg-0">
+            <Card.Body>
+              <div className="d-flex align-items-center mb-3">
+                <FaChalkboardTeacher className="text-primary me-2" />
+                <span className="text-muted">
+                  Instructor: {course.instructorName}
+                </span>
+              </div>
+
               <p>{course.description}</p>
 
               {isInstructor() && (
-                <Alert variant="info" className="mt-3 mb-0">
-                  <div className="d-flex align-items-center gap-2">
-                    <FaUser />
-                    <span>You are the instructor of this course</span>
-                  </div>
+                <Alert
+                  variant="info"
+                  className="mt-3 mb-0 d-flex align-items-center"
+                >
+                  <FaChalkboardTeacher className="me-2" />
+                  <span>You are the instructor of this course</span>
                 </Alert>
               )}
-            </div>
+            </Card.Body>
+          </Card>
+        </Col>
 
-            <div className="ms-md-4 mt-3 mt-md-0">
+        <Col lg={4}>
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Body className="d-flex flex-column">
               {user ? (
                 enrollment ? (
-                  <div className="text-center">
-                    <Badge
-                      bg="success"
-                      className="p-2 mb-3 d-flex align-items-center gap-2 mx-auto"
-                    >
-                      <FaCheckCircle /> Enrolled
-                    </Badge>
+                  <>
+                    <div className="text-center mb-3">
+                      <Badge bg="success" className="px-3 py-2 mb-3">
+                        <FaCheckCircle className="me-2" /> Enrolled
+                      </Badge>
 
-                    {courseProgress && (
-                      <div className="mb-3">
-                        <div className="d-flex justify-content-between align-items-center mb-1">
-                          <span>Progress:</span>
-                          <span>
-                            {Math.round(courseProgress.progressPercentage)}%
-                          </span>
+                      {courseProgress && (
+                        <div className="mt-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span>Your Progress</span>
+                            <span className="fw-bold">
+                              {Math.round(courseProgress.progressPercentage)}%
+                            </span>
+                          </div>
+                          <ProgressBar
+                            now={courseProgress.progressPercentage}
+                            variant={
+                              courseProgress.progressPercentage >= 100
+                                ? "success"
+                                : courseProgress.progressPercentage >= 50
+                                  ? "info"
+                                  : "primary"
+                            }
+                            style={{ height: "10px" }}
+                            className="mb-2"
+                          />
+                          <small className="text-muted">
+                            {courseProgress.completedLessons} of{" "}
+                            {courseProgress.totalLessons} lessons completed
+                          </small>
                         </div>
-                        <ProgressBar
-                          now={courseProgress.progressPercentage}
-                          variant={
-                            courseProgress.progressPercentage >= 100
-                              ? "success"
-                              : courseProgress.progressPercentage >= 50
-                                ? "info"
-                                : "primary"
-                          }
-                          style={{ height: "10px" }}
-                        />
-                        <div className="text-muted small mt-1">
-                          {courseProgress.completedLessons} of{" "}
-                          {courseProgress.totalLessons} lessons completed
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="d-flex gap-2 justify-content-center">
-                      <Button
-                        as={Link}
-                        to={`/courses/${id}/progress`}
-                        variant="outline-primary"
-                        className="d-flex align-items-center gap-2"
-                      >
-                        <FaChartLine /> View Progress
-                      </Button>
+                      )}
                     </div>
-                  </div>
+
+                    <Button
+                      as={Link}
+                      to={`/courses/${id}/progress`}
+                      variant="outline-primary"
+                      className="d-flex align-items-center justify-content-center gap-2 mt-auto"
+                    >
+                      <FaChartLine /> View Detailed Progress
+                    </Button>
+                  </>
                 ) : (
                   user.role === "Student" &&
                   !isInstructor() && (
                     <Button
                       variant="primary"
-                      size="lg"
-                      className="w-100"
+                      className="py-2"
                       onClick={enrollInCourse}
                       disabled={enrollingInProgress}
                     >
@@ -547,22 +548,22 @@ function CourseDetail() {
                   )
                 )
               ) : (
-                <Alert variant="info">
-                  <p className="mb-2">Want to enroll in this course?</p>
+                <div className="text-center">
+                  <p className="mb-3">Want to enroll in this course?</p>
                   <Button as={Link} to="/login" variant="primary">
-                    Login to Enroll
+                    Sign In to Enroll
                   </Button>
-                </Alert>
+                </div>
               )}
-            </div>
-          </div>
-        </Card.Body>
-      </Card>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="row" id="course-content">
-        <div className="col-md-4 mb-4 mb-md-0">
-          <Card className="shadow-sm">
-            <Card.Header className="bg-light">
+      <Row>
+        <Col lg={4} className="mb-4 mb-lg-0">
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Header className="bg-light border-0">
               <h3 className="h5 mb-0">Course Content</h3>
             </Card.Header>
             <Card.Body className="p-0">
@@ -571,17 +572,19 @@ function CourseDetail() {
                   defaultActiveKey={
                     activeModule ? activeModule.id.toString() : "0"
                   }
+                  alwaysOpen
                 >
                   {modules.map((module) => (
                     <Accordion.Item
                       key={module.id}
                       eventKey={module.id.toString()}
+                      className="border-0 border-bottom"
                     >
-                      <Accordion.Header>
+                      <Accordion.Header className="py-3">
                         <div className="d-flex justify-content-between align-items-center w-100 pe-3">
                           <div>{module.title}</div>
                           <Badge bg="secondary" pill>
-                            {module.lessons?.length || 0} lessons
+                            {module.lessons?.length || 0}
                           </Badge>
                         </div>
                       </Accordion.Header>
@@ -601,43 +604,40 @@ function CourseDetail() {
                                   onClick={() =>
                                     handleLessonSelect(module, lesson)
                                   }
-                                  className="d-flex justify-content-between align-items-center"
+                                  className="border-0 py-3 ps-4"
                                 >
-                                  <div className="d-flex align-items-center">
-                                    {lesson.type === "Text" && (
-                                      <FaBook className="me-2" />
-                                    )}
-                                    {lesson.type === "Video" && (
-                                      <FaVideo className="me-2" />
-                                    )}
-                                    {lesson.type === "Quiz" && (
-                                      <FaQuestionCircle className="me-2" />
-                                    )}
-                                    <div>
-                                      {lesson.title}
-                                      {progressStatus === "completed" && (
-                                        <div className="text-success small">
-                                          <FaCheckCircle className="me-1" />{" "}
-                                          Completed
-                                        </div>
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <div className="d-flex align-items-center">
+                                      {lesson.type === "Text" && (
+                                        <FaBook className="me-2 text-primary" />
                                       )}
-                                      {progressStatus === "in-progress" && (
-                                        <div className="text-warning small">
-                                          In Progress
-                                        </div>
+                                      {lesson.type === "Video" && (
+                                        <FaVideo className="me-2 text-success" />
                                       )}
+                                      {lesson.type === "Quiz" && (
+                                        <FaQuestionCircle className="me-2 text-warning" />
+                                      )}
+                                      <div>
+                                        <div>{lesson.title}</div>
+                                        {progressStatus === "completed" && (
+                                          <small className="text-success d-flex align-items-center">
+                                            <FaCheckCircle className="me-1" />{" "}
+                                            Completed
+                                          </small>
+                                        )}
+                                        {progressStatus === "in-progress" && (
+                                          <small className="text-warning">
+                                            In Progress
+                                          </small>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                  <Badge
-                                    bg={getLessonTypeBadgeColor(lesson.type)}
-                                  >
-                                    {lesson.type}
-                                  </Badge>
                                 </ListGroup.Item>
                               );
                             })
                           ) : (
-                            <ListGroup.Item className="text-center py-3">
+                            <ListGroup.Item className="text-center py-3 border-0">
                               <p className="text-muted mb-0">
                                 No lessons in this module yet.
                               </p>
@@ -669,92 +669,102 @@ function CourseDetail() {
               )}
             </Card.Body>
           </Card>
-        </div>
+        </Col>
 
-        <div className="col-md-8">
-          <Card.Body>
-            {/* Check if user can access content */}
-            {!user ? (
-              <Alert variant="warning">
-                <p className="mb-3">Please login to view course content.</p>
-                <Button as={Link} to="/login" variant="primary">
-                  Login
-                </Button>
-              </Alert>
-            ) : !enrollment && !isInstructorOrAdmin() ? (
-              <Alert variant="info">
-                <p className="mb-3">
-                  You need to enroll in this course to access its content.
-                </p>
-                <Button
-                  onClick={enrollInCourse}
-                  variant="primary"
-                  disabled={enrollingInProgress}
-                >
-                  {enrollingInProgress ? "Enrolling..." : "Enroll Now"}
-                </Button>
-              </Alert>
-            ) : (
-              <>
-                {activeLesson ? (
-                  loadingLesson ? (
-                    <div className="text-center my-5">
-                      <Spinner animation="border" size="sm" />
-                      <p className="mt-2">Loading lesson content...</p>
-                    </div>
-                  ) : (
-                    <LessonView
-                      lesson={activeLesson}
-                      onLessonComplete={handleLessonComplete}
-                      nextLesson={getNextLesson()}
-                      prevLesson={getPreviousLesson()}
-                      isInstructor={isInstructor()}
-                      isEnrolled={!!enrollment} // Pass isEnrolled prop based on enrollment status
-                    />
-                  )
-                ) : (
-                  <div className="text-center py-4">
-                    {modules.length > 0 ? (
-                      <p>
-                        Select a lesson from the course content to begin
-                        learning.
-                      </p>
+        <Col lg={8}>
+          <Card className="border-0 shadow-sm">
+            <Card.Body>
+              {/* Check if user can access content */}
+              {!user ? (
+                <Alert variant="warning">
+                  <p className="mb-3">Please sign in to view course content.</p>
+                  <Button as={Link} to="/login" variant="primary">
+                    Sign In
+                  </Button>
+                </Alert>
+              ) : !enrollment && !isInstructorOrAdmin() ? (
+                <Alert variant="info">
+                  <p className="mb-3">
+                    You need to enroll in this course to access its content.
+                  </p>
+                  <Button
+                    onClick={enrollInCourse}
+                    variant="primary"
+                    disabled={enrollingInProgress}
+                  >
+                    {enrollingInProgress ? "Enrolling..." : "Enroll Now"}
+                  </Button>
+                </Alert>
+              ) : (
+                <>
+                  {activeLesson ? (
+                    loadingLesson ? (
+                      <div className="text-center my-5">
+                        <Spinner
+                          animation="border"
+                          variant="primary"
+                          size="sm"
+                        />
+                        <p className="mt-2">Loading lesson content...</p>
+                      </div>
                     ) : (
-                      <p>This course doesn't have any content yet.</p>
-                    )}
+                      <LessonView
+                        lesson={activeLesson}
+                        onLessonComplete={handleLessonComplete}
+                        nextLesson={getNextLesson()}
+                        prevLesson={getPreviousLesson()}
+                        isInstructor={isInstructor()}
+                        isEnrolled={!!enrollment}
+                      />
+                    )
+                  ) : (
+                    <div className="text-center py-5">
+                      {modules.length > 0 ? (
+                        <>
+                          <FaBook className="text-primary mb-3" size={40} />
+                          <h2 className="h4 mb-3">Ready to Begin Learning?</h2>
+                          <p className="mb-4">
+                            Select a lesson from the course content to start
+                            your learning journey.
+                          </p>
+                          {modules[0]?.lessons?.length > 0 && (
+                            <Button
+                              variant="primary"
+                              onClick={() =>
+                                handleLessonSelect(
+                                  modules[0],
+                                  modules[0].lessons[0],
+                                )
+                              }
+                            >
+                              Start First Lesson
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <p>This course doesn't have any content yet.</p>
+                      )}
 
-                    {isInstructorOrAdmin() && modules.length === 0 && (
-                      <Button
-                        as={Link}
-                        to={`/courses/editor/${course.id}`}
-                        variant="primary"
-                        className="mt-3"
-                      >
-                        Add Course Content
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </Card.Body>
-        </div>
-      </div>
-    </div>
+                      {isInstructorOrAdmin() && modules.length === 0 && (
+                        <Button
+                          as={Link}
+                          to={`/courses/editor/${course.id}`}
+                          variant="primary"
+                          className="mt-3"
+                        >
+                          <FaEdit className="me-2" /> Add Course Content
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
-}
-
-function getLessonTypeBadgeColor(type) {
-  switch (type) {
-    case "Text":
-      return "primary";
-    case "Video":
-      return "success";
-    case "Quiz":
-      return "warning";
-    default:
-      return "secondary";
-  }
 }
 
 export default CourseDetail;

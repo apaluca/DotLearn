@@ -196,12 +196,16 @@ function LessonModal({
 
   const handleQuestionTextChange = (e) => {
     const updatedQuestions = [...questions];
-    updatedQuestions[activeQuestionIndex].questionText = e.target.value;
-    setQuestions(updatedQuestions);
+    if (updatedQuestions[activeQuestionIndex]) {
+      updatedQuestions[activeQuestionIndex].questionText = e.target.value;
+      setQuestions(updatedQuestions);
+    }
   };
 
   const handleQuestionTypeChange = (e) => {
     const updatedQuestions = [...questions];
+    if (!updatedQuestions[activeQuestionIndex]) return;
+
     const oldType = updatedQuestions[activeQuestionIndex].questionType;
     const newType = e.target.value;
 
@@ -231,12 +235,20 @@ function LessonModal({
   };
 
   const handleOptionTextChange = (index, value) => {
+    if (
+      !questions[activeQuestionIndex] ||
+      !questions[activeQuestionIndex].options
+    )
+      return;
+
     const updatedQuestions = [...questions];
     updatedQuestions[activeQuestionIndex].options[index].optionText = value;
     setQuestions(updatedQuestions);
   };
 
   const addOptionToQuestion = async () => {
+    if (!questions[activeQuestionIndex]) return;
+
     const currentQuestion = questions[activeQuestionIndex];
 
     // Limit to 5 options max
@@ -286,6 +298,12 @@ function LessonModal({
   };
 
   const removeOptionFromQuestion = async (index) => {
+    if (
+      !questions[activeQuestionIndex] ||
+      !questions[activeQuestionIndex].options
+    )
+      return;
+
     const currentQuestion = questions[activeQuestionIndex];
     const option = currentQuestion.options[index];
 
@@ -323,6 +341,12 @@ function LessonModal({
   };
 
   const markOptionAsCorrect = async (index) => {
+    if (
+      !questions[activeQuestionIndex] ||
+      !questions[activeQuestionIndex].options
+    )
+      return;
+
     const updatedQuestions = [...questions];
     const currentQuestion = updatedQuestions[activeQuestionIndex];
     const questionType = currentQuestion.questionType;
@@ -362,6 +386,8 @@ function LessonModal({
   };
 
   const removeQuestion = async (index) => {
+    if (index < 0 || index >= questions.length) return;
+
     const questionToRemove = questions[index];
 
     if (questions.length <= 1) {
@@ -478,6 +504,13 @@ function LessonModal({
       if (formData.type === "Quiz" && savedLesson) {
         const lessonId = savedLesson.id || lessonData?.lessonId;
 
+        if (!lessonId) {
+          console.error("No lesson ID available to save quiz questions");
+          setError("Failed to save quiz questions - missing lesson ID");
+          setSaving(false);
+          return;
+        }
+
         // 1. Process deletion of questions that don't exist anymore
         if (isEditing && originalQuestions.length > 0) {
           // Find question IDs that were in original but not in current questions
@@ -525,7 +558,7 @@ function LessonModal({
                   await axios.put(`/api/quizzes/options/${optionId}/correct`);
                 } else {
                   await axios.put(
-                    `/api/quizzes/options/${optionId}/toggle-correct`,
+                    `//api/quizzes/options/${optionId}/toggle-correct`,
                   );
                 }
               }
@@ -765,7 +798,7 @@ function LessonModal({
                 >
                   {loadingQuiz ? (
                     <div className="text-center my-4">
-                      <Spinner animation="border" />
+                      <Spinner animation="border" variant="primary" />
                       <p className="mt-2">Loading quiz questions...</p>
                     </div>
                   ) : (
@@ -863,7 +896,8 @@ function LessonModal({
                                       onClick={addOptionToQuestion}
                                       disabled={
                                         savingOption ||
-                                        currentQuestion.options.length >= 5
+                                        (currentQuestion.options &&
+                                          currentQuestion.options.length >= 5)
                                       }
                                       className="d-flex align-items-center gap-1"
                                     >
@@ -880,65 +914,68 @@ function LessonModal({
                                     </Button>
                                   </div>
 
-                                  {currentQuestion.options.map(
-                                    (option, index) => (
-                                      <Row
-                                        key={index}
-                                        className="mb-2 align-items-center"
-                                      >
-                                        <Col xs={8}>
-                                          <Form.Control
-                                            placeholder={`Option ${index + 1}`}
-                                            value={option.optionText}
-                                            onChange={(e) =>
-                                              handleOptionTextChange(
-                                                index,
-                                                e.target.value,
-                                              )
-                                            }
-                                          />
-                                        </Col>
-                                        <Col xs={4} className="d-flex gap-2">
-                                          <Button
-                                            variant={
-                                              option.isCorrect
-                                                ? "success"
-                                                : "outline-success"
-                                            }
-                                            onClick={() =>
-                                              markOptionAsCorrect(index)
-                                            }
-                                            className="flex-grow-1 d-flex align-items-center justify-content-center gap-1"
-                                          >
-                                            {option.isCorrect && <FaCheck />}
-                                            {option.isCorrect
-                                              ? "Correct"
-                                              : "Mark Correct"}
-                                          </Button>
-
-                                          {currentQuestion.options.length >
-                                            2 && (
-                                            <Button
-                                              variant="outline-danger"
-                                              onClick={() =>
-                                                removeOptionFromQuestion(index)
+                                  {currentQuestion.options &&
+                                    currentQuestion.options.map(
+                                      (option, index) => (
+                                        <Row
+                                          key={index}
+                                          className="mb-2 align-items-center"
+                                        >
+                                          <Col xs={8}>
+                                            <Form.Control
+                                              placeholder={`Option ${index + 1}`}
+                                              value={option.optionText}
+                                              onChange={(e) =>
+                                                handleOptionTextChange(
+                                                  index,
+                                                  e.target.value,
+                                                )
                                               }
-                                              disabled={deletingOption}
+                                            />
+                                          </Col>
+                                          <Col xs={4} className="d-flex gap-2">
+                                            <Button
+                                              variant={
+                                                option.isCorrect
+                                                  ? "success"
+                                                  : "outline-success"
+                                              }
+                                              onClick={() =>
+                                                markOptionAsCorrect(index)
+                                              }
+                                              className="flex-grow-1 d-flex align-items-center justify-content-center gap-1"
                                             >
-                                              {deletingOption ? (
-                                                <Spinner
-                                                  size="sm"
-                                                  animation="border"
-                                                />
-                                              ) : (
-                                                <FaTrash />
-                                              )}
+                                              {option.isCorrect && <FaCheck />}
+                                              {option.isCorrect
+                                                ? "Correct"
+                                                : "Mark Correct"}
                                             </Button>
-                                          )}
-                                        </Col>
-                                      </Row>
-                                    ),
-                                  )}
+
+                                            {currentQuestion.options.length >
+                                              2 && (
+                                              <Button
+                                                variant="outline-danger"
+                                                onClick={() =>
+                                                  removeOptionFromQuestion(
+                                                    index,
+                                                  )
+                                                }
+                                                disabled={deletingOption}
+                                              >
+                                                {deletingOption ? (
+                                                  <Spinner
+                                                    size="sm"
+                                                    animation="border"
+                                                  />
+                                                ) : (
+                                                  <FaTrash />
+                                                )}
+                                              </Button>
+                                            )}
+                                          </Col>
+                                        </Row>
+                                      ),
+                                    )}
                                 </div>
                               </Card.Body>
                             </Card>

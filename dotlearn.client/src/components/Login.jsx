@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Form, Button, Card, Alert, InputGroup } from "react-bootstrap";
+import {
+  Form,
+  Button,
+  Card,
+  Alert,
+  Container,
+  Row,
+  Col,
+} from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  FaUser,
-  FaLock,
-  FaSignInAlt,
-  FaUserPlus,
-  FaBook,
-} from "react-icons/fa";
+import { FaSignInAlt, FaUser, FaLock, FaBookOpen } from "react-icons/fa";
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -44,77 +46,79 @@ function Login() {
   };
 
   return (
-    <div className="d-flex justify-content-center">
-      <Card className="shadow" style={{ width: "450px" }}>
-        <Card.Body className="p-4">
+    <Container className="py-5">
+      <Row className="justify-content-center">
+        <Col xs={12} md={6} lg={5}>
           <div className="text-center mb-4">
-            <FaBook size={40} className="text-primary mb-2" />
-            <Card.Title as="h2" className="mb-1">
-              Welcome Back
-            </Card.Title>
-            <p className="text-muted">Sign in to continue to DotLearn LMS</p>
+            <FaBookOpen size={50} className="text-primary mb-3" />
+            <h1 className="h3">DotLearn LMS</h1>
           </div>
 
-          {error && <Alert variant="danger">{error}</Alert>}
+          <Card className="border-0 shadow-sm">
+            <Card.Body className="p-4">
+              <h2 className="text-center mb-4">Sign In</h2>
 
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3" controlId="username">
-              <Form.Label>Username</Form.Label>
-              <InputGroup>
-                <InputGroup.Text>
-                  <FaUser />
-                </InputGroup.Text>
-                <Form.Control
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
-                  required
-                />
-              </InputGroup>
-            </Form.Group>
+              {error && <Alert variant="danger">{error}</Alert>}
 
-            <Form.Group className="mb-4" controlId="password">
-              <Form.Label>Password</Form.Label>
-              <InputGroup>
-                <InputGroup.Text>
-                  <FaLock />
-                </InputGroup.Text>
-                <Form.Control
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
-              </InputGroup>
-            </Form.Group>
+              <Form onSubmit={handleSubmit}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Username</Form.Label>
+                  <div className="input-group">
+                    <span className="input-group-text">
+                      <FaUser />
+                    </span>
+                    <Form.Control
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter your username"
+                      required
+                    />
+                  </div>
+                </Form.Group>
 
-            <Button
-              variant="primary"
-              type="submit"
-              className="w-100 mb-3 d-flex align-items-center justify-content-center gap-2"
-              disabled={loading}
-            >
-              <FaSignInAlt />
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </Form>
+                <Form.Group className="mb-4">
+                  <Form.Label>Password</Form.Label>
+                  <div className="input-group">
+                    <span className="input-group-text">
+                      <FaLock />
+                    </span>
+                    <Form.Control
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                    />
+                  </div>
+                </Form.Group>
 
-          <div className="text-center mt-4">
-            <p className="mb-0">
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                className="d-inline-flex align-items-center gap-1"
-              >
-                <FaUserPlus size={14} /> Register Now
-              </Link>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  className="w-100 py-2 mb-3"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    "Signing in..."
+                  ) : (
+                    <>
+                      <FaSignInAlt className="me-2" /> Sign In
+                    </>
+                  )}
+                </Button>
+              </Form>
+            </Card.Body>
+          </Card>
+
+          <div className="text-center mt-3">
+            <p>
+              Don't have an account? <Link to="/register">Register Now</Link>
             </p>
           </div>
-        </Card.Body>
-      </Card>
-    </div>
+        </Col>
+      </Row>
+    </Container>
   );
 }
 

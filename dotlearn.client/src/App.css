@@ -1,155 +1,145 @@
-﻿#root {
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
+﻿:root {
+  --bs-primary: #0d6efd;
+  --bs-secondary: #6c757d;
+  --bs-success: #198754;
+  --bs-info: #0dcaf0;
+  --bs-warning: #ffc107;
+  --bs-danger: #dc3545;
+  --bs-light: #f8f9fa;
+  --bs-dark: #212529;
 }
 
-/* Main container for page content */
-.main-container {
-  min-height: calc(100vh - 250px);
-  /* Adjust for header and footer */
+body {
+  background-color: #f9fafc;
+  color: #343a40;
 }
 
-/* Card styling */
+/* Navbar Improvements */
+.navbar {
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.04);
+}
+
+.navbar-brand {
+  font-weight: 600;
+}
+
+/* Card Improvements */
 .card {
-  border-radius: 0.5rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
 }
 
 .card:hover {
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* Card with hover disabled */
-.card.no-hover:hover {
-  transform: none;
-  box-shadow: none;
+.card.border-0 {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
 }
 
-/* Card header styling */
-.card-header {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+/* Button Improvements */
+.btn {
+  font-weight: 500;
 }
 
-.card-header h2,
-.card-header h3 {
-  margin-bottom: 0;
-  font-size: 1.25rem;
+.btn-primary {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
 }
 
-/* Accordion customizations */
-.accordion-button:not(.collapsed) {
-  background-color: rgba(13, 110, 253, 0.1);
-  color: #0d6efd;
+.btn-outline-primary {
+  color: var(--bs-primary);
+  border-color: var(--bs-primary);
 }
 
-.accordion-item {
-  border-radius: 0.25rem;
+.btn-outline-primary:hover {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: white;
+}
+
+/* Progress bar improvements */
+.progress {
+  height: 8px;
+  border-radius: 4px;
   overflow: hidden;
-  margin-bottom: 0.5rem;
-  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.accordion-header {
-  margin-bottom: 0;
-}
-
-/* Badge styling */
+/* Badge improvements */
 .badge {
   font-weight: 500;
-  padding: 0.5em 0.75em;
+  letter-spacing: 0.3px;
 }
 
-/* Course content list */
-.list-group-item-action:hover {
-  background-color: rgba(13, 110, 253, 0.05);
-}
-
-.list-group-item-action.active {
-  background-color: #274d87;
-}
-
-/* Auth forms */
-.auth-form {
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-/* Lesson content styling */
+/* Content styling */
 .lesson-content {
-  font-size: 1.1rem;
-  line-height: 1.6;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.lesson-content h1,
+.lesson-content h2,
+.lesson-content h3,
+.lesson-content h4,
+.lesson-content h5,
+.lesson-content h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .lesson-content p {
   margin-bottom: 1.2rem;
 }
 
-.lesson-content code {
-  background-color: #f8f9fa;
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem;
-  font-size: 0.9em;
+.lesson-content ul,
+.lesson-content ol {
+  margin-bottom: 1.2rem;
+}
+
+.lesson-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
 }
 
 .lesson-content pre {
   background-color: #f8f9fa;
   padding: 1rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1.5rem;
+  border-radius: 4px;
   overflow-x: auto;
 }
 
-/* Button hover effect */
-.btn {
-  border-radius: 0.25rem;
-  transition: all 0.2s;
+.lesson-content code {
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875em;
+  color: #d63384;
+  background-color: rgba(0, 0, 0, 0.03);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
 }
 
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+/* Improvements for form elements */
+.form-control:focus,
+.form-select:focus {
+  border-color: rgba(var(--bs-primary-rgb), 0.5);
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.15);
 }
 
-/* Progress bar styling */
-.progress {
-  height: 0.75rem;
-  border-radius: 1rem;
-}
+/* Responsive improvements */
+@media (max-width: 767.98px) {
 
-/* Breadcrumb styling */
-.breadcrumb {
-  background-color: transparent;
-  padding: 0.75rem 0;
-}
-
-/* Media queries for responsive design */
-@media (max-width: 576px) {
-  h1 {
-    font-size: 1.75rem;
+  h1,
+  .h1 {
+    font-size: 1.8rem;
   }
 
-  h2 {
+  h2,
+  .h2 {
     font-size: 1.5rem;
   }
 
-  .card-title {
-    font-size: 1.25rem;
+  .container {
+    padding-left: 20px;
+    padding-right: 20px;
   }
-
-  .navbar-brand {
-    font-size: 1.2rem;
-  }
-}
-
-/* Utility classes */
-.shadow-sm {
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
-}
-
-.bg-light {
-  background-color: #f8f9fa !important;
 }

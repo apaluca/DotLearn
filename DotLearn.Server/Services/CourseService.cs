@@ -1,6 +1,7 @@
 ﻿using DotLearn.Server.Common;
 using DotLearn.Server.Data.Repositories;
 using DotLearn.Server.Domain.Entities;
+using DotLearn.Server.Domain.Enums;
 using DotLearn.Server.DTOs.Courses;
 
 namespace DotLearn.Server.Services
@@ -9,16 +10,19 @@ namespace DotLearn.Server.Services
     {
         private readonly ICourseRepository _courseRepository;
         private readonly IRepository<User> _userRepository;
-        private readonly IRepository<LessonProgress> _progressRepository;
+        private readonly IProgressRepository _progressRepository;
+        private readonly IEnrollmentRepository _enrollmentRepository;
 
         public CourseService(
             ICourseRepository courseRepository,
             IRepository<User> userRepository,
-            IRepository<LessonProgress> progressRepository)
+            IProgressRepository progressRepository,
+            IEnrollmentRepository enrollmentRepository)
         {
             _courseRepository = courseRepository;
             _userRepository = userRepository;
             _progressRepository = progressRepository;
+            _enrollmentRepository = enrollmentRepository;
         }
 
         public async Task<IEnumerable<CourseDto>> GetAllCoursesAsync()
@@ -168,18 +172,64 @@ namespace DotLearn.Server.Services
                 throw new UnauthorizedException("You don't have permission to view this course's students");
             }
 
-            // Implementation of student statistics would go here...
-            // This would involve querying enrollments, progress, etc.
+            // Get course with all its modules and lessons to calculate total lessons
+            var courseDetails = await _courseRepository.GetCourseWithDetailsAsync(id);
+            int totalLessons = courseDetails?.Modules.Sum(m => m.Lessons.Count) ?? 0;
 
-            // For now, returning a stub implementation
+            // Get all enrollments for this course
+            var enrollments = await _enrollmentRepository.GetEnrollmentsByCourseIdAsync(id);
+
+            var studentProgressList = new List<StudentProgressDto>();
+            int completedCount = 0;
+            double totalProgressPercentage = 0;
+
+            foreach (var enrollment in enrollments)
+            {
+                // Get user details
+                var user = await _userRepository.GetByIdAsync(enrollment.UserId);
+                if (user == null) continue;
+
+                // Get completed lessons count for this student
+                int completedLessons = await _progressRepository.GetCompletedLessonsCountAsync(enrollment.UserId, id);
+
+                // Calculate progress percentage
+                double progressPercentage = totalLessons > 0 ? (double)completedLessons / totalLessons * 100 : 0;
+                totalProgressPercentage += progressPercentage;
+
+                // Count completed courses
+                if (enrollment.Status == EnrollmentStatus.Completed)
+                {
+                    completedCount++;
+                }
+
+                studentProgressList.Add(new StudentProgressDto
+                {
+                    UserId = user.Id,
+                    Username = user.Username,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    EnrollmentDate = enrollment.EnrollmentDate,
+                    Status = enrollment.Status.ToString(),
+                    CompletionDate = enrollment.CompletionDate,
+                    TotalLessons = totalLessons,
+                    CompletedLessons = completedLessons,
+                    ProgressPercentage = progressPercentage
+                });
+            }
+
+            // Calculate average progress and completion rate
+            double averageProgress = studentProgressList.Count > 0 ? totalProgressPercentage / studentProgressList.Count : 0;
+            double completionRate = enrollments.Count() > 0 ? (double)completedCount / enrollments.Count() * 100 : 0;
+
             return new CourseStudentsDto
             {
                 CourseId = id,
                 CourseTitle = course.Title,
-                TotalStudents = await _courseRepository.GetEnrollmentCountAsync(id),
-                AverageProgress = 0,
-                CompletionRate = 0,
-                Students = new List<StudentProgressDto>()
+                TotalStudents = enrollments.Count(),
+                AverageProgress = averageProgress,
+                CompletionRate = completionRate,
+                Students = studentProgressList
             };
         }
     }

@@ -10,10 +10,20 @@ import {
   Alert,
   Spinner,
   Badge,
+  Container,
 } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import LessonModal from "./LessonModal";
+import {
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaBook,
+  FaVideo,
+  FaQuestionCircle,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 
 function CourseEditor() {
   const { id } = useParams();
@@ -52,8 +62,18 @@ function CourseEditor() {
 
         // Get course details
         const courseResponse = await axios.get(`/api/courses/${id}`);
-        setCourse(courseResponse.data);
-        setModules(courseResponse.data.modules);
+
+        // Ensure all modules have a lessons array
+        const courseData = courseResponse.data;
+        if (courseData && courseData.modules) {
+          courseData.modules = courseData.modules.map((module) => ({
+            ...module,
+            lessons: module.lessons || [], // Ensure lessons array exists
+          }));
+        }
+
+        setCourse(courseData);
+        setModules(courseData.modules || []);
       } catch (err) {
         setError("Failed to load course data. Please try again later.");
         console.error(err);
@@ -123,21 +143,27 @@ function CourseEditor() {
           courseId: parseInt(id),
         });
 
+        // Ensure the new module has a lessons array
+        const newModule = {
+          ...response.data,
+          lessons: [], // Initialize empty lessons array
+        };
+
         // Add to local state
-        setModules((prevModules) => [...prevModules, response.data]);
+        setModules((prevModules) => [...prevModules, newModule]);
       }
 
       // Close modal
       setShowModuleModal(false);
     } catch (err) {
-      alert("Failed to save module. Please try again.");
+      setError("Failed to save module. Please try again.");
       console.error(err);
     }
   };
 
   const deleteModule = async (moduleId) => {
     if (
-      !confirm(
+      !window.confirm(
         "Are you sure you want to delete this module and all its lessons? This action cannot be undone.",
       )
     ) {
@@ -150,7 +176,7 @@ function CourseEditor() {
       // Remove from local state
       setModules((prevModules) => prevModules.filter((m) => m.id !== moduleId));
     } catch (err) {
-      alert("Failed to delete module. Please try again.");
+      setError("Failed to delete module. Please try again.");
       console.error(err);
     }
   };
@@ -191,7 +217,7 @@ function CourseEditor() {
       setShowLessonModal(true);
     } catch (err) {
       console.error("Error loading lesson data:", err);
-      alert("Failed to load lesson data. Please try again.");
+      setError("Failed to load lesson data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -213,15 +239,18 @@ function CourseEditor() {
             if (m.id === lessonFormData.moduleId) {
               return {
                 ...m,
-                lessons: m.lessons.map((l) =>
-                  l.id === lessonFormData.lessonId
-                    ? {
-                        ...l,
-                        title: formData.title,
-                        type: formData.type,
-                      }
-                    : l,
-                ),
+                lessons:
+                  m.lessons && m.lessons.length
+                    ? m.lessons.map((l) =>
+                        l.id === lessonFormData.lessonId
+                          ? {
+                              ...l,
+                              title: formData.title,
+                              type: formData.type,
+                            }
+                          : l,
+                      )
+                    : [], // If lessons array doesn't exist or is empty
               };
             }
             return m;
@@ -244,7 +273,10 @@ function CourseEditor() {
             if (m.id === lessonFormData.moduleId) {
               return {
                 ...m,
-                lessons: [...m.lessons, response.data],
+                lessons:
+                  m.lessons && Array.isArray(m.lessons)
+                    ? [...m.lessons, response.data]
+                    : [response.data], // Create new array if it doesn't exist
               };
             }
             return m;
@@ -261,7 +293,7 @@ function CourseEditor() {
 
   const deleteLesson = async (lessonId, moduleId) => {
     if (
-      !confirm(
+      !window.confirm(
         "Are you sure you want to delete this lesson? This action cannot be undone.",
       )
     ) {
@@ -284,38 +316,40 @@ function CourseEditor() {
         }),
       );
     } catch (err) {
-      alert("Failed to delete lesson. Please try again.");
+      setError("Failed to delete lesson. Please try again.");
       console.error(err);
     }
   };
 
   if (loading) {
     return (
-      <div className="text-center my-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading course editor...</p>
-      </div>
+      <Container>
+        <div className="text-center my-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-3">Loading course editor...</p>
+        </div>
+      </Container>
     );
   }
 
   if (!course) {
     return (
-      <Alert variant="warning">
-        Course not found or you don't have permission to edit.
-      </Alert>
+      <Container>
+        <Alert variant="warning">
+          Course not found or you don't have permission to edit.
+        </Alert>
+      </Container>
     );
   }
 
   return (
-    <div>
+    <Container>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>Edit Course Content: {course.title}</h1>
+        <h1>Edit Course Content</h1>
 
         <div>
           <Button
-            variant="outline-secondary"
+            variant="outline-primary"
             className="me-2"
             onClick={() => navigate(`/courses/${id}`)}
           >
@@ -332,15 +366,15 @@ function CourseEditor() {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Card className="mb-4">
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <h2>Course Modules</h2>
+      <Card className="border-0 shadow-sm mb-4">
+        <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+          <h2 className="h5 mb-0">Course Modules</h2>
           <Button variant="primary" onClick={openAddModuleModal}>
-            Add Module
+            <FaPlus className="me-2" /> Add Module
           </Button>
         </Card.Header>
         <Card.Body>
-          {modules.length > 0 ? (
+          {modules && modules.length > 0 ? (
             <Accordion defaultActiveKey={modules[0]?.id.toString()}>
               {modules.map((module) => (
                 <Accordion.Item key={module.id} eventKey={module.id.toString()}>
@@ -361,14 +395,14 @@ function CourseEditor() {
                           onClick={() => openEditModuleModal(module)}
                           className="me-2"
                         >
-                          Edit Module
+                          <FaEdit className="me-1" /> Edit Module
                         </Button>
                         <Button
                           variant="outline-danger"
                           size="sm"
                           onClick={() => deleteModule(module.id)}
                         >
-                          Delete Module
+                          <FaTrash className="me-1" /> Delete Module
                         </Button>
                       </div>
                       <Button
@@ -376,25 +410,20 @@ function CourseEditor() {
                         size="sm"
                         onClick={() => openAddLessonModal(module.id)}
                       >
-                        Add Lesson
+                        <FaPlus className="me-1" /> Add Lesson
                       </Button>
                     </div>
 
                     <ListGroup variant="flush">
-                      {module.lessons?.length > 0 ? (
+                      {module.lessons && module.lessons.length > 0 ? (
                         module.lessons.map((lesson) => (
                           <ListGroup.Item
                             key={lesson.id}
                             className="d-flex justify-content-between align-items-center"
                           >
                             <div className="d-flex align-items-center">
-                              <Badge
-                                bg={getLessonTypeBadgeColor(lesson.type)}
-                                className="me-2"
-                              >
-                                {lesson.type}
-                              </Badge>
-                              {lesson.title}
+                              {getLessonTypeIcon(lesson.type)}
+                              <div className="ms-2">{lesson.title}</div>
                             </div>
                             <div>
                               <Button
@@ -403,7 +432,7 @@ function CourseEditor() {
                                 onClick={() => openEditLessonModal(lesson.id)}
                                 className="me-2"
                               >
-                                Edit
+                                <FaEdit /> Edit
                               </Button>
                               <Button
                                 variant="link"
@@ -413,7 +442,7 @@ function CourseEditor() {
                                   deleteLesson(lesson.id, module.id)
                                 }
                               >
-                                Delete
+                                <FaTrash /> Delete
                               </Button>
                             </div>
                           </ListGroup.Item>
@@ -432,6 +461,7 @@ function CourseEditor() {
             </Accordion>
           ) : (
             <div className="text-center py-5">
+              <FaExclamationTriangle className="text-muted mb-3" size={40} />
               <p className="text-muted mb-3">
                 This course doesn't have any modules yet.
               </p>
@@ -491,20 +521,21 @@ function CourseEditor() {
         isEditing={lessonFormData.editing}
         courseId={id}
       />
-    </div>
+    </Container>
   );
 }
 
-function getLessonTypeBadgeColor(type) {
+// Helper function to get lesson type icon
+function getLessonTypeIcon(type) {
   switch (type) {
     case "Text":
-      return "primary";
+      return <FaBook className="text-primary" />;
     case "Video":
-      return "success";
+      return <FaVideo className="text-success" />;
     case "Quiz":
-      return "warning";
+      return <FaQuestionCircle className="text-warning" />;
     default:
-      return "secondary";
+      return <FaBook className="text-primary" />;
   }
 }
 

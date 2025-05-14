@@ -7,7 +7,6 @@ import {
   FaArrowLeft,
   FaArrowRight,
   FaTimes,
-  FaEdit,
 } from "react-icons/fa";
 import Quiz from "./Quiz";
 
@@ -17,7 +16,7 @@ function LessonView({
   nextLesson,
   prevLesson,
   isInstructor = false,
-  isEnrolled = false, // Added isEnrolled prop
+  isEnrolled = false,
 }) {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +58,7 @@ function LessonView({
       }
 
       // Mark lesson as started (only for non-instructors)
-      if (!isInstructor) {
+      if (!isInstructor && isEnrolled) {
         await axios.post("/api/progress/lesson/start", {
           lessonId: lesson.id,
         });
@@ -70,10 +69,10 @@ function LessonView({
         );
         const courseProgress = progressResponse.data;
 
-        // Find this lesson's progress - first find the right module
+        // Find this lesson's progress
         let foundLessonProgress = null;
 
-        // Loop through all modules and their lessons to find the current lesson's progress
+        // Loop through modules and lessons to find progress
         for (const module of courseProgress.modules) {
           const lessonProgress = module.lessons.find(
             (l) => l.lessonId === lesson.id,
@@ -86,7 +85,6 @@ function LessonView({
         }
 
         if (foundLessonProgress) {
-          console.log("Found lesson progress:", foundLessonProgress);
           setProgress({
             isStarted: true,
             isCompleted: foundLessonProgress.isCompleted,
@@ -94,7 +92,6 @@ function LessonView({
             completedAt: foundLessonProgress.completedAt,
           });
         } else {
-          console.log("No progress found for lesson ID:", lesson.id);
           setProgress({
             isStarted: true,
             isCompleted: false,
@@ -175,10 +172,8 @@ function LessonView({
   if (loading) {
     return (
       <div className="text-center my-4">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading lesson...</span>
-        </Spinner>
-        <p className="mt-2">Loading lesson content...</p>
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3">Loading lesson content...</p>
       </div>
     );
   }
@@ -191,12 +186,14 @@ function LessonView({
     return <Alert variant="warning">Lesson content not found.</Alert>;
   }
 
-  // Instructor viewing a quiz - show preview instead of editor
+  // Instructor viewing a quiz - show preview
   if (lesson.type === "Quiz" && isInstructor) {
     return (
-      <Card className="shadow-sm">
-        <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+      <Card className="border-0 shadow-sm">
+        <Card.Header className="bg-light d-flex justify-content-between align-items-center border-0">
           <h3 className="h5 mb-0">Quiz Preview</h3>
+
+          <Badge bg="info">Instructor View</Badge>
         </Card.Header>
         <Card.Body>
           {content.content && (
@@ -217,7 +214,7 @@ function LessonView({
               </p>
 
               {quizData.questions.map((question, index) => (
-                <Card key={question.id} className="mb-3">
+                <Card key={question.id} className="mb-3 border shadow-sm">
                   <Card.Header className="bg-light d-flex justify-content-between align-items-center">
                     <span>Question {index + 1}</span>
                     <Badge
@@ -238,7 +235,7 @@ function LessonView({
                       {question.options.map((option) => (
                         <li
                           key={option.id}
-                          className="list-group-item d-flex justify-content-between align-items-center"
+                          className="list-group-item d-flex justify-content-between align-items-center border-0 border-bottom"
                         >
                           {option.optionText}
                           {option.isCorrect && (
@@ -293,7 +290,11 @@ function LessonView({
   }
 
   return (
-    <Card className="shadow-sm">
+    <Card className="border-0 shadow-sm">
+      <Card.Header className="bg-light border-0">
+        <h3 className="h5 mb-0">{content.title}</h3>
+      </Card.Header>
+
       <Card.Body>
         {/* Display content based on lesson type */}
         {lesson.type === "Quiz" ? (
@@ -305,7 +306,7 @@ function LessonView({
           />
         ) : lesson.type === "Video" ? (
           <div className="mb-4">
-            <div className="ratio ratio-16x9">
+            <div className="ratio ratio-16x9 border shadow-sm">
               <iframe
                 src={
                   content.content.includes("youtube.com") ||
@@ -325,7 +326,7 @@ function LessonView({
           />
         )}
 
-        <div className="d-flex justify-content-between mt-4">
+        <div className="d-flex justify-content-between align-items-center mt-4 pt-4 border-top">
           <div>
             {prevLesson && (
               <Button
@@ -334,35 +335,26 @@ function LessonView({
                 variant="outline-primary"
                 className="d-flex align-items-center gap-2"
               >
-                <FaArrowLeft /> Previous Lesson
+                <FaArrowLeft /> Previous
               </Button>
             )}
           </div>
 
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 flex-wrap">
             {!isInstructor && lesson.type !== "Quiz" && isEnrolled && (
               <>
                 {progress.isCompleted ? (
                   <Button
-                    variant="outline-warning"
+                    variant="outline-secondary"
                     onClick={handleUnmarkComplete}
                     disabled={markingComplete}
-                    className="d-flex align-items-center gap-2"
+                    size="sm"
                   >
                     {markingComplete ? (
-                      <>
-                        <Spinner
-                          as="span"
-                          animation="border"
-                          size="sm"
-                          role="status"
-                          aria-hidden="true"
-                        />{" "}
-                        Unmarking...
-                      </>
+                      <Spinner animation="border" size="sm" />
                     ) : (
                       <>
-                        <FaTimes /> Unmark as Complete
+                        <FaTimes className="me-1" /> Unmark Complete
                       </>
                     )}
                   </Button>
@@ -371,22 +363,12 @@ function LessonView({
                     variant="success"
                     onClick={handleMarkComplete}
                     disabled={markingComplete}
-                    className="d-flex align-items-center gap-2"
                   >
                     {markingComplete ? (
-                      <>
-                        <Spinner
-                          as="span"
-                          animation="border"
-                          size="sm"
-                          role="status"
-                          aria-hidden="true"
-                        />{" "}
-                        Marking...
-                      </>
+                      <Spinner animation="border" size="sm" />
                     ) : (
                       <>
-                        <FaCheckCircle /> Mark as Complete
+                        <FaCheckCircle className="me-1" /> Mark Complete
                       </>
                     )}
                   </Button>
@@ -401,7 +383,7 @@ function LessonView({
                 variant={progress.isCompleted ? "primary" : "outline-primary"}
                 className="d-flex align-items-center gap-2"
               >
-                Next Lesson <FaArrowRight />
+                Next <FaArrowRight />
               </Button>
             )}
           </div>
