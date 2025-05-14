@@ -546,7 +546,6 @@ function CourseDetail() {
                     </Button>
                   </>
                 ) : (
-                  user.role === "Student" &&
                   !isInstructor() && (
                     <Button
                       variant="primary"

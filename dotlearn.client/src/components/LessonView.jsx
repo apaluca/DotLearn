@@ -169,6 +169,33 @@ function LessonView({
     }
   };
 
+  // New helper function to get proper embed URL
+  const getEmbedUrl = (url) => {
+    if (!url) return "";
+
+    // Handle YouTube URLs
+    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      const videoId = url.includes("youtube.com/watch?v=")
+        ? url.split("v=")[1]?.split("&")[0]
+        : url.includes("youtu.be/")
+          ? url.split("youtu.be/")[1]?.split("?")[0]
+          : null;
+
+      if (videoId) {
+        return `https://www.youtube-nocookie.com/embed/${videoId}`;
+      }
+    }
+    // Handle Vimeo URLs
+    else if (url.includes("vimeo.com")) {
+      const vimeoId = url.match(/vimeo\.com\/([0-9]+)/)?.[1];
+      if (vimeoId) {
+        return `https://player.vimeo.com/video/${vimeoId}?dnt=1`;
+      }
+    }
+
+    return url; // Return original URL if it's not YouTube or Vimeo
+  };
+
   if (loading) {
     return (
       <div className="text-center my-4">
@@ -308,14 +335,10 @@ function LessonView({
           <div className="mb-4">
             <div className="ratio ratio-16x9 border shadow-sm">
               <iframe
-                src={
-                  content.content.includes("youtube.com") ||
-                  content.content.includes("youtu.be")
-                    ? content.content.replace("watch?v=", "embed/")
-                    : content.content
-                }
+                src={getEmbedUrl(content.content)}
                 title={content.title}
                 allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
               ></iframe>
             </div>
           </div>
