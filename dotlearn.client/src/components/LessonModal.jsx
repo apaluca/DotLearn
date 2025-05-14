@@ -368,9 +368,15 @@ function LessonModal({
         setError("");
 
         if (questionType === "SingleChoice") {
-          await axios.put(`/api/quizzes/options/${option.id}/correct`);
+          // Fix: Use the correct API endpoint path with POST method
+          await axios.post(
+            `/api/quizzes/questions/${currentQuestion.id}/options/${option.id}/correct`,
+          );
         } else {
-          await axios.put(`/api/quizzes/options/${option.id}/toggle-correct`);
+          // Fix: Use the correct API endpoint path with POST method
+          await axios.post(
+            `/api/quizzes/questions/${currentQuestion.id}/options/${option.id}/toggle`,
+          );
         }
       } catch (err) {
         console.error("Error updating option correctness:", err);
@@ -555,10 +561,12 @@ function LessonModal({
                 const optionId = questionResponse.data.options[i].id;
 
                 if (question.questionType === "SingleChoice") {
-                  await axios.put(`/api/quizzes/options/${optionId}/correct`);
+                  await axios.post(
+                    `/api/quizzes/questions/${questionResponse.data.id}/options/${optionId}/correct`,
+                  );
                 } else {
-                  await axios.put(
-                    `//api/quizzes/options/${optionId}/toggle-correct`,
+                  await axios.post(
+                    `/api/quizzes/questions/${questionResponse.data.id}/options/${optionId}/toggle`,
                   );
                 }
               }
@@ -815,22 +823,25 @@ function LessonModal({
                         </Button>
                       </div>
 
-                      {/* Question tabs */}
+                      {/* Question tabs - FIXED VERSION TO AVOID NESTED BUTTONS */}
                       {questions.length > 0 ? (
                         <div className="mb-4">
                           <div className="d-flex mb-3 gap-2 flex-wrap">
                             {questions.map((q, index) => (
-                              <Button
+                              <div
                                 key={index}
-                                variant={
-                                  activeQuestionIndex === index
-                                    ? "primary"
-                                    : "outline-secondary"
-                                }
-                                onClick={() => setActiveQuestionIndex(index)}
-                                className="position-relative"
+                                className="position-relative d-inline-block me-2"
                               >
-                                Question {index + 1}
+                                <Button
+                                  variant={
+                                    activeQuestionIndex === index
+                                      ? "primary"
+                                      : "outline-secondary"
+                                  }
+                                  onClick={() => setActiveQuestionIndex(index)}
+                                >
+                                  Question {index + 1}
+                                </Button>
                                 {questions.length > 1 && (
                                   <Button
                                     variant="danger"
@@ -845,7 +856,7 @@ function LessonModal({
                                     <FaTimes size={10} />
                                   </Button>
                                 )}
-                              </Button>
+                              </div>
                             ))}
                           </div>
 

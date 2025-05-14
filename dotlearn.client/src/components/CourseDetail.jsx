@@ -60,6 +60,17 @@ function CourseDetail() {
         setCourse(courseResponse.data);
         setModules(courseResponse.data.modules);
 
+        if (courseResponse.data && courseResponse.data.modules) {
+          courseResponse.data.modules = courseResponse.data.modules.map(
+            (module) => ({
+              ...module,
+              lessons: module.lessons || [], // Ensure lessons array exists
+            }),
+          );
+        }
+        setCourse(courseResponse.data);
+        setModules(courseResponse.data.modules || []);
+
         // If user is logged in, check enrollment status and progress
         if (user) {
           try {

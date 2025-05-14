@@ -19,7 +19,7 @@ namespace DotLearn.Server.Controllers
             _quizService = quizService;
         }
 
-        // GET: api/quizzes/lesson/5
+        // GET: api/quizzes/lesson/{lessonId}
         [HttpGet("lesson/{lessonId}")]
         public async Task<ActionResult<QuizDto>> GetQuizByLesson(int lessonId)
         {
@@ -87,7 +87,7 @@ namespace DotLearn.Server.Controllers
             }
         }
 
-        // POST: api/quizzes/lesson/5/questions
+        // POST: api/quizzes/lesson/{lessonId}/questions
         [HttpPost("lesson/{lessonId}/questions")]
         [Authorize(Roles = "Instructor,Admin")]
         public async Task<ActionResult<QuizQuestionDto>> AddQuizQuestion(int lessonId, [FromBody] QuizQuestionDto questionDto)
@@ -122,6 +122,263 @@ namespace DotLearn.Server.Controllers
             }
         }
 
-        // Continue with other controller methods following the same pattern...
+        // PUT: api/quizzes/questions/{id}
+        [HttpPut("questions/{id}")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> UpdateQuestion(int id, [FromBody] QuizQuestionDto questionDto)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _quizService.UpdateQuestionAsync(id, questionDto, userId, userRole);
+                return NoContent();
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while updating the question", error = ex.Message });
+            }
+        }
+
+        // DELETE: api/quizzes/questions/{id}
+        [HttpDelete("questions/{id}")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> DeleteQuestion(int id)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _quizService.DeleteQuestionAsync(id, userId, userRole);
+                return NoContent();
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while deleting the question", error = ex.Message });
+            }
+        }
+
+        // POST: api/quizzes/questions/{questionId}/options
+        [HttpPost("questions/{questionId}/options")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<ActionResult<QuizOptionDto>> AddOptionToQuestion(int questionId, [FromBody] QuizOptionDto optionDto)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                var option = await _quizService.AddOptionToQuestionAsync(questionId, optionDto, userId, userRole);
+                return Ok(option);
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while adding the option", error = ex.Message });
+            }
+        }
+
+        // PUT: api/quizzes/options/{id}
+        [HttpPut("options/{id}")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> UpdateOption(int id, [FromBody] QuizOptionDto optionDto)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _quizService.UpdateOptionAsync(id, optionDto, userId, userRole);
+                return NoContent();
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while updating the option", error = ex.Message });
+            }
+        }
+
+        // DELETE: api/quizzes/options/{id}
+        [HttpDelete("options/{id}")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> DeleteOption(int id)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _quizService.DeleteOptionAsync(id, userId, userRole);
+                return NoContent();
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while deleting the option", error = ex.Message });
+            }
+        }
+
+        // POST: api/quizzes/questions/{questionId}/options/{optionId}/correct
+        [HttpPost("questions/{questionId}/options/{optionId}/correct")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> SetCorrectOption(int questionId, int optionId)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _quizService.SetCorrectOptionAsync(optionId, userId, userRole);
+                return NoContent();
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while setting the correct option", error = ex.Message });
+            }
+        }
+
+        // POST: api/quizzes/questions/{questionId}/options/{optionId}/toggle
+        [HttpPost("questions/{questionId}/options/{optionId}/toggle")]
+        [Authorize(Roles = "Instructor,Admin")]
+        public async Task<IActionResult> ToggleCorrectOption(int questionId, int optionId)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                await _quizService.ToggleCorrectOptionAsync(optionId, userId, userRole);
+                return NoContent();
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while toggling the option", error = ex.Message });
+            }
+        }
+
+        // GET: api/quizzes/attempts/{lessonId}
+        [HttpGet("attempts/{lessonId}")]
+        public async Task<ActionResult<IEnumerable<QuizAttemptDto>>> GetQuizAttempts(int lessonId)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+                var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
+
+                var attempts = await _quizService.GetQuizAttemptsAsync(lessonId, userId, userRole);
+                return Ok(attempts);
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedException)
+            {
+                return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving quiz attempts", error = ex.Message });
+            }
+        }
     }
 }
